@@ -13,7 +13,7 @@ fn main() -> io::Result<()> {
 
     let rom_load_area = &mut main[0x0100..];
 
-    let mut file = File::open("roms/test/LIT2.rom")?;
+    let mut file = File::open("roms/test/SUB2.rom")?;
     let n = file.read(rom_load_area)?;
     print_bytes(&rom_load_area[..n]);
 
@@ -21,15 +21,45 @@ fn main() -> io::Result<()> {
         let raw_code = main[counter as usize];
         let code = parse_code(raw_code);
         match code {
-            Code::ADD(_f) => {
-                let b = work.pop().unwrap();
-                let a = work.pop().unwrap();
-                work.push(a + b);
+            Code::ADD(f) => {
+                if f.short {
+                    let low_b = work.pop().unwrap();
+                    let high_b = work.pop().unwrap();
+                    let b = u16::from_be_bytes([high_b, low_b]);
+
+                    let low_a = work.pop().unwrap();
+                    let high_a = work.pop().unwrap();
+                    let a = u16::from_be_bytes([high_a, low_a]);
+
+                    let [high, low] = (a + b).to_be_bytes();
+
+                    work.push(high);
+                    work.push(low);
+                } else {
+                    let b = work.pop().unwrap();
+                    let a = work.pop().unwrap();
+                    work.push(a + b);
+                }
             },
-            Code::SUB(_f) => {
-                let b = work.pop().unwrap();
-                let a = work.pop().unwrap();
-                work.push(a - b);
+            Code::SUB(f) => {
+                if f.short {
+                    let low_b = work.pop().unwrap();
+                    let high_b = work.pop().unwrap();
+                    let b = u16::from_be_bytes([high_b, low_b]);
+
+                    let low_a = work.pop().unwrap();
+                    let high_a = work.pop().unwrap();
+                    let a = u16::from_be_bytes([high_a, low_a]);
+
+                    let [high, low] = (a - b).to_be_bytes();
+
+                    work.push(high);
+                    work.push(low);
+                } else {
+                    let b = work.pop().unwrap();
+                    let a = work.pop().unwrap();
+                    work.push(a - b);
+                }
             },
             Code::LIT(f) => {
                 if f.short {
