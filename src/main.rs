@@ -13,14 +13,22 @@ fn main() -> io::Result<()> {
 
     let rom_load_area = &mut main[0x0100..];
 
-    let mut f = File::open("roms/test/hi.rom")?;
+    let mut f = File::open("roms/test/add_sub.rom")?;
     let n = f.read(rom_load_area)?;
     print_bytes(&rom_load_area[..n]);
 
     loop {
         match main[counter as usize] {
-            0x18 => todo!("ADD"),
-            0x19 => todo!("SUB"),
+            0x18 => { // ADD
+                let b = work.pop().unwrap();
+                let a = work.pop().unwrap();
+                work.push(a + b);
+            },
+            0x19 => { // SUB
+                let b = work.pop().unwrap();
+                let a = work.pop().unwrap();
+                work.push(a - b);
+            },
             0x80 => { // LIT
                 counter += 1;
                 work.push(main[counter as usize]);
