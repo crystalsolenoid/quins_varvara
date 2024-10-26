@@ -13,7 +13,7 @@ fn main() -> io::Result<()> {
 
     let rom_load_area = &mut main[0x0100..];
 
-    let mut file = File::open("roms/test/SUB2.rom")?;
+    let mut file = File::open("roms/test/SUB2_wrap.rom")?;
     let n = file.read(rom_load_area)?;
     print_bytes(&rom_load_area[..n]);
 
@@ -31,14 +31,14 @@ fn main() -> io::Result<()> {
                     let high_a = work.pop().unwrap();
                     let a = u16::from_be_bytes([high_a, low_a]);
 
-                    let [high, low] = (a + b).to_be_bytes();
+                    let [high, low] = a.wrapping_add(b).to_be_bytes();
 
                     work.push(high);
                     work.push(low);
                 } else {
                     let b = work.pop().unwrap();
                     let a = work.pop().unwrap();
-                    work.push(a + b);
+                    work.push(a.wrapping_add(b));
                 }
             },
             Code::SUB(f) => {
@@ -51,14 +51,14 @@ fn main() -> io::Result<()> {
                     let high_a = work.pop().unwrap();
                     let a = u16::from_be_bytes([high_a, low_a]);
 
-                    let [high, low] = (a - b).to_be_bytes();
+                    let [high, low] = a.wrapping_sub(b).to_be_bytes();
 
                     work.push(high);
                     work.push(low);
                 } else {
                     let b = work.pop().unwrap();
                     let a = work.pop().unwrap();
-                    work.push(a - b);
+                    work.push(a.wrapping_sub(b));
                 }
             },
             Code::LIT(f) => {
