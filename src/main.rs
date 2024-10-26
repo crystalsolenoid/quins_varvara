@@ -13,8 +13,8 @@ fn main() -> io::Result<()> {
 
     let rom_load_area = &mut main[0x0100..];
 
-    let mut f = File::open("roms/test/add_sub.rom")?;
-    let n = f.read(rom_load_area)?;
+    let mut file = File::open("roms/test/LIT2.rom")?;
+    let n = file.read(rom_load_area)?;
     print_bytes(&rom_load_area[..n]);
 
     loop {
@@ -31,9 +31,16 @@ fn main() -> io::Result<()> {
                 let a = work.pop().unwrap();
                 work.push(a - b);
             },
-            Code::LIT(_f) => {
-                counter += 1;
-                work.push(main[counter as usize]);
+            Code::LIT(f) => {
+                if f.short {
+                    counter += 1;
+                    work.push(main[counter as usize]);
+                    counter += 1;
+                    work.push(main[counter as usize]);
+                } else {
+                    counter += 1;
+                    work.push(main[counter as usize]);
+                }
             },
             Code::DEO(_f) => {
                 let _device = work.pop().unwrap();
