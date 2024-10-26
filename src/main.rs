@@ -18,31 +18,32 @@ fn main() -> io::Result<()> {
     print_bytes(&rom_load_area[..n]);
 
     loop {
-        match main[counter as usize] {
-            0x18 => { // ADD
+        let raw_code = main[counter as usize];
+        let code = parse_code(raw_code);
+        match code {
+            Code::ADD(_f) => {
                 let b = work.pop().unwrap();
                 let a = work.pop().unwrap();
                 work.push(a + b);
             },
-            0x19 => { // SUB
+            Code::SUB(_f) => {
                 let b = work.pop().unwrap();
                 let a = work.pop().unwrap();
                 work.push(a - b);
             },
-            0x80 => { // LIT
+            Code::LIT(_f) => {
                 counter += 1;
                 work.push(main[counter as usize]);
             },
-            0x17 => { // DEO
+            Code::DEO(_f) => {
                 let _device = work.pop().unwrap();
                 let value = work.pop().unwrap();
                 out.write(&[value])?;
                 out.flush()?;
             },
-            0x00 => { // BRK
+            Code::BRK => {
                 break;
             }
-            code => panic!("Unexpected instruction code {code}")
         };
         counter += 1;
     }
@@ -52,4 +53,45 @@ fn main() -> io::Result<()> {
 
 fn print_bytes(data: &[u8]) {
     println!("{:0>2x?}", &data);
+}
+
+struct CodeFlags {
+    keep: bool,
+    ret: bool,
+    short: bool,
+}
+
+struct LitFlags {
+    ret: bool,
+    short: bool,
+}
+
+enum Code {
+    BRK,
+    DEO(CodeFlags),
+    ADD(CodeFlags),
+    SUB(CodeFlags),
+    LIT(LitFlags),
+}
+
+fn parse_code(byte: u8) -> Code {
+    let code = 0b000_11111 & byte;
+    let short = 0b001_00000 & byte != 0;
+    let ret = 0b010_00000 & byte != 0;
+    if ret { todo!("Return flag not yet implemented! Code: {byte:0>2x?}"); }
+    let keep = 0b100_00000 & byte != 0;
+    if keep && code != 0x00 { todo!("Keep flag not yet implemented! Code: {byte:0>2x?}"); }
+
+    let flags = CodeFlags {keep, ret, short};
+    match code {
+        0x00 => if keep {
+                Code::LIT(LitFlags {ret, short})
+            } else {
+                Code::BRK
+            },
+        0x17 => Code::DEO(flags),
+        0x18 => Code::ADD(flags),
+        0x19 => Code::SUB(flags),
+        _ => todo!("Missing opcode! Code: {byte:0>2x?}"),
+    }
 }
