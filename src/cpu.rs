@@ -1,4 +1,4 @@
-//use super::varvara::Varvara;
+use super::varvara::Varvara;
 
 pub struct Stack {
     bytes: Vec::<u8>,
@@ -45,6 +45,18 @@ impl Cpu {
         let ret = Stack::new();
         let counter = 0x0100;
         Self { work, ret, counter }
+    }
+
+    pub fn next_byte(&mut self, varvara: &Varvara) -> u8 {
+        let byte = varvara.main[self.counter as usize];
+        self.counter = self.counter.wrapping_add(1);
+        byte
+    }
+
+    pub fn next_short(&mut self, varvara: &Varvara) -> u16 {
+        let high_byte = self.next_byte(varvara);
+        let low_byte = self.next_byte(varvara);
+        return u16::from_be_bytes([high_byte, low_byte])
     }
 
 //    pub fn operate(&mut varvara: Varvara) {

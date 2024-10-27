@@ -3,22 +3,21 @@ use std::io::prelude::*;
 use std::fs::File;
 
 use uxn::cpu::Cpu;
+use uxn::varvara::Varvara;
 
 fn main() -> io::Result<()> {
     let mut out = std::io::stdout();
 
-    let mut main: [u8; 0xFFFF] = [0; 0xFFFF];
-    let mut _io: [u8; 0xFF] = [0; 0xFF];
-
+    let mut varvara = Varvara::new();
     let mut uxn = Cpu::new();
 
-    let rom_load_area = &mut main[0x0100..];
+    let rom_load_area = &mut varvara.main[0x0100..];
     let mut file = File::open("roms/test/SUB2_wrap.rom")?;
     let n = file.read(rom_load_area)?;
     print_bytes(&rom_load_area[..n]);
 
     loop {
-        let raw_code = main[uxn.counter as usize];
+        let raw_code = uxn.next_byte(&varvara);
         let code = parse_code(raw_code);
         match code {
             Code::ADD(f) => {
@@ -45,13 +44,11 @@ fn main() -> io::Result<()> {
             },
             Code::LIT(f) => {
                 if f.short {
-                    uxn.counter += 1;
-                    uxn.work.push(main[uxn.counter as usize]);
-                    uxn.counter += 1;
-                    uxn.work.push(main[uxn.counter as usize]);
+                    let short = uxn.next_short(&varvara);
+                    uxn.work.push2(short);
                 } else {
-                    uxn.counter += 1;
-                    uxn.work.push(main[uxn.counter as usize]);
+                    let byte = uxn.next_byte(&varvara);
+                    uxn.work.push(byte);
                 }
             },
             Code::DEO(_f) => {
@@ -64,7 +61,6 @@ fn main() -> io::Result<()> {
                 break;
             }
         };
-        uxn.counter += 1;
     }
 
     Ok(())
