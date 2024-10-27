@@ -23,41 +23,23 @@ fn main() -> io::Result<()> {
         match code {
             Code::ADD(f) => {
                 if f.short {
-                    let low_b = uxn.work.pop().unwrap();
-                    let high_b = uxn.work.pop().unwrap();
-                    let b = u16::from_be_bytes([high_b, low_b]);
-
-                    let low_a = uxn.work.pop().unwrap();
-                    let high_a = uxn.work.pop().unwrap();
-                    let a = u16::from_be_bytes([high_a, low_a]);
-
-                    let [high, low] = a.wrapping_add(b).to_be_bytes();
-
-                    uxn.work.push(high);
-                    uxn.work.push(low);
+                    let b = uxn.work.pop2();
+                    let a = uxn.work.pop2();
+                    uxn.work.push2(a.wrapping_add(b));
                 } else {
-                    let b = uxn.work.pop().unwrap();
-                    let a = uxn.work.pop().unwrap();
+                    let b = uxn.work.pop();
+                    let a = uxn.work.pop();
                     uxn.work.push(a.wrapping_add(b));
                 }
             },
             Code::SUB(f) => {
                 if f.short {
-                    let low_b = uxn.work.pop().unwrap();
-                    let high_b = uxn.work.pop().unwrap();
-                    let b = u16::from_be_bytes([high_b, low_b]);
-
-                    let low_a = uxn.work.pop().unwrap();
-                    let high_a = uxn.work.pop().unwrap();
-                    let a = u16::from_be_bytes([high_a, low_a]);
-
-                    let [high, low] = a.wrapping_sub(b).to_be_bytes();
-
-                    uxn.work.push(high);
-                    uxn.work.push(low);
+                    let b = uxn.work.pop2();
+                    let a = uxn.work.pop2();
+                    uxn.work.push2(a.wrapping_sub(b));
                 } else {
-                    let b = uxn.work.pop().unwrap();
-                    let a = uxn.work.pop().unwrap();
+                    let b = uxn.work.pop();
+                    let a = uxn.work.pop();
                     uxn.work.push(a.wrapping_sub(b));
                 }
             },
@@ -73,8 +55,8 @@ fn main() -> io::Result<()> {
                 }
             },
             Code::DEO(_f) => {
-                let _device = uxn.work.pop().unwrap();
-                let value = uxn.work.pop().unwrap();
+                let _device = uxn.work.pop();
+                let value = uxn.work.pop();
                 out.write(&[value])?;
                 out.flush()?;
             },
