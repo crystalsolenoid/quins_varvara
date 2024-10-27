@@ -6,8 +6,6 @@ use uxn::cpu::Cpu;
 use uxn::varvara::Varvara;
 
 fn main() -> io::Result<()> {
-    let mut out = std::io::stdout();
-
     let mut varvara = Varvara::new();
     let mut uxn = Cpu::new();
 
