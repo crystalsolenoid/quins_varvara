@@ -3,7 +3,7 @@ use std::io::prelude::*;
 
 use super::varvara::Device;
 
-struct System {
+pub struct System {
     out: std::io::Stdout
 }
 

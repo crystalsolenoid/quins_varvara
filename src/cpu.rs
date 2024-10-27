@@ -79,9 +79,17 @@ impl Cpu {
     }
 
     /// Do one operation
-    pub fn step(&mut self, varvara: &mut Varvara) {
+    pub fn step(&mut self, varvara: &mut Varvara) -> bool {
         let raw_code = self.next_byte(varvara);
-        todo!();
+        let code = parse_code(raw_code);
+        match code {
+            Code::ADD(f) => self.add(f),
+            Code::SUB(f) => self.sub(f),
+            Code::LIT(f) => self.lit(f, varvara),
+            Code::DEO(f) => self.deo(f, varvara),
+            Code::BRK => return true,
+        }
+        false
     }
 
     /// Execute ADD
@@ -122,10 +130,10 @@ impl Cpu {
     }
 
     /// Execute DEO
-    pub fn deo(&mut self, f: CodeFlags) {
-        let _device = self.work.pop();
-        let value = self.work.pop();
-        todo!();
+    pub fn deo(&mut self, f: CodeFlags, varvara: &mut Varvara) {
+        let addr = self.work.pop();
+        let byte = self.work.pop();
+        varvara.deo(addr, byte);
         //out.write(&[value])?;
         //out.flush()?;
     }

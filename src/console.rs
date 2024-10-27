@@ -3,7 +3,7 @@ use std::io::prelude::*;
 
 use super::varvara::Device;
 
-struct Console {
+pub struct Console {
     out: std::io::Stdout,
 }
 
@@ -21,9 +21,10 @@ impl Console {
 }
 
 impl Device for Console {
-    fn deo(&mut self, port: u8, value: u8) {
-        match port {
-            0x7 => self.write(value),
+    fn deo(&mut self, addr: u8, value: u8) {
+        let port = addr & 0x0F;
+        let _ = match port {
+            0x8 => self.write(value),
             _ => panic!("Don't know how to write to port {port}!")
         };
     }
