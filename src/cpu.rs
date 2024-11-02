@@ -132,10 +132,13 @@ impl Cpu {
     /// Execute DEO
     pub fn deo(&mut self, f: CodeFlags, varvara: &mut Varvara) {
         let addr = self.work.pop();
-        let byte = self.work.pop();
-        varvara.deo(addr, byte);
-        //out.write(&[value])?;
-        //out.flush()?;
+        if f.short {
+            let short = self.work.pop2();
+            varvara.deo2(addr, short);
+        } else {
+            let byte = self.work.pop();
+            varvara.deo(addr, byte);
+        }
     }
 }
 
