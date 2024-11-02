@@ -4,13 +4,15 @@ use std::io::prelude::*;
 use super::varvara::Device;
 
 pub struct System {
-    out: std::io::Stdout
+    out: std::io::Stdout,
+    colors: [u32; 4],
 }
 
 impl System {
     pub fn new() -> Self {
         let out = std::io::stdout();
-        Self { out }
+        let colors = [0xFFFFFF, 0x000000, 0x77ddbb, 0xff6622];
+        Self { out, colors }
     }
 
     fn print_debug(&mut self) -> io::Result<()> {
@@ -18,7 +20,10 @@ impl System {
     }
 
     fn update_color(&mut self) {
-        todo!();
+    }
+
+    pub fn index_to_0rgb(&self, color: u8) -> u32 {
+        self.colors[color as usize] as u32
     }
 }
 

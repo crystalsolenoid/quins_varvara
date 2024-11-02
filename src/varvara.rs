@@ -34,7 +34,10 @@ impl Varvara {
             "Test - ESC to exit",
             WIDTH,
             HEIGHT,
-            WindowOptions::default(),
+            WindowOptions{
+                scale: minifb::Scale::X4,
+                ..WindowOptions::default()
+            },
         )
         .unwrap_or_else(|e| {
             panic!("{}", e);
@@ -49,7 +52,7 @@ impl Varvara {
         match addr {
             0x00..0x10 => self.system.notify_deo(&self.io, addr, byte),
             0x10..0x20 => self.console.notify_deo(&self.io, addr, byte),
-            //0x20..0x30 => self.screen,
+            0x20..0x30 => self.screen.notify_deo(&self.io, addr, byte),
             _ => todo!(),
         }
     }
@@ -61,13 +64,17 @@ impl Varvara {
             // mean writing half to one device and half to another
             0x00..0x0F => self.system.notify_deo2(&self.io, addr, short),
             0x10..0x1F => self.console.notify_deo2(&self.io, addr, short),
+            0x20..0x2F => self.screen.notify_deo2(&self.io, addr, short),
             _ => todo!(),
         }
     }
 
     pub fn update_window(&mut self) {
+        let rgb_buffer: Vec<_> = self.screen.buffer.iter()
+            .map(|&i| self.system.index_to_0rgb(i))
+            .collect();
         self.window
-            .update_with_buffer(&self.screen.buffer, WIDTH, HEIGHT)
+            .update_with_buffer(&rgb_buffer, WIDTH, HEIGHT)
             .unwrap();
     }
 }
