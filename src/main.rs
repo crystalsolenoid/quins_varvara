@@ -12,7 +12,7 @@ fn main() -> io::Result<()> {
     let mut uxn = Cpu::new();
 
     let rom_load_area = &mut varvara.main[0x0100..];
-    let mut file = File::open("roms/test/Pixel.rom").expect("failed to open rom file");
+    let mut file = File::open("roms/test/Color.rom").expect("failed to open rom file");
     let n = file.read(rom_load_area).expect("failed to read rom file");
     print_bytes(&rom_load_area[..n]);
 
