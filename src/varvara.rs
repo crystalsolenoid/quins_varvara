@@ -1,5 +1,8 @@
+use minifb::{Key, Window, WindowOptions};
+
 use super::system::System;
 use super::console::Console;
+use super::screen::Screen;
 
 pub trait Device {
     fn notify_deo(&mut self, io: &[u8], port: u8, value: u8) {}
@@ -11,7 +14,13 @@ pub struct Varvara {
     pub io: [u8; 0xFF],
     pub system: System,
     pub console: Console,
+    pub screen: Screen,
+
+    pub window: Window,
 }
+
+const WIDTH: usize = 512;
+const HEIGHT: usize = 320;
 
 impl Varvara {
     pub fn new() -> Self {
@@ -19,7 +28,20 @@ impl Varvara {
         let io = [0; 0xFF];
         let system = System::new();
         let console = Console::new();
-        Self { main, io, system, console }
+        let screen = Screen::new();
+
+        let mut window = Window::new(
+            "Test - ESC to exit",
+            WIDTH,
+            HEIGHT,
+            WindowOptions::default(),
+        )
+        .unwrap_or_else(|e| {
+            panic!("{}", e);
+        });
+        window.set_target_fps(30);
+
+        Self { main, io, system, console, screen, window }
     }
 
     pub fn deo(&mut self, addr: u8, byte: u8) {
@@ -41,6 +63,12 @@ impl Varvara {
             0x10..0x1F => self.console.notify_deo2(&self.io, addr, short),
             _ => todo!(),
         }
+    }
+
+    pub fn update_window(&mut self) {
+        self.window
+            .update_with_buffer(&self.screen.buffer, WIDTH, HEIGHT)
+            .unwrap();
     }
 }
 
