@@ -4,12 +4,15 @@ use std::fs::File;
 
 use minifb::{Key};
 
+use uxn::tal;
 use uxn::cpu::Cpu;
 use uxn::varvara::Varvara;
 
 fn main() -> io::Result<()> {
     let mut varvara = Varvara::new();
     let mut uxn = Cpu::new();
+
+    tal::assemble("roms/test/Assemble.tal", "roms/test/Assemble.rom").expect("failed to assemble");
 
     let rom_load_area = &mut varvara.main[0x0100..];
     let mut file = File::open("roms/test/Color.rom").expect("failed to open rom file");
