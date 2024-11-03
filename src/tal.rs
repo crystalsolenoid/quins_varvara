@@ -72,6 +72,10 @@ fn parse_code(token: &str) -> String {
         "DEO" => 0x17,
         "DEI" => 0x16,
         "BRK" => 0x00,
+        "INC" => 0x01,
+        "MUL" => 0x1a,
+        "DIV" => 0x1b,
+        "SFT" => 0x1f,
         // assume it isn't an opcode and return unmodified
         _ => return token.to_string()
     };
