@@ -14,6 +14,7 @@ pub struct LitFlags {
 pub enum Code {
     BRK,
     DEO(CodeFlags),
+    DEI(CodeFlags),
     ADD(CodeFlags),
     SUB(CodeFlags),
     LIT(LitFlags),
@@ -87,6 +88,7 @@ impl Cpu {
             Code::SUB(f) => self.sub(f),
             Code::LIT(f) => self.lit(f, varvara),
             Code::DEO(f) => self.deo(f, varvara),
+            Code::DEI(f) => self.dei(f, varvara),
             Code::BRK => return true,
         }
         false
@@ -140,6 +142,16 @@ impl Cpu {
             varvara.deo(addr, byte);
         }
     }
+
+    /// Execute DEI
+    pub fn dei(&mut self, f: CodeFlags, varvara: &mut Varvara) {
+        let addr = self.work.pop();
+        if f.short {
+            self.work.push2(varvara.dei2(addr));
+        } else {
+            self.work.push(varvara.dei(addr));
+        }
+    }
 }
 
 pub fn parse_code(byte: u8) -> Code {
@@ -157,6 +169,7 @@ pub fn parse_code(byte: u8) -> Code {
             } else {
                 Code::BRK
             },
+        0x16 => Code::DEI(flags),
         0x17 => Code::DEO(flags),
         0x18 => Code::ADD(flags),
         0x19 => Code::SUB(flags),

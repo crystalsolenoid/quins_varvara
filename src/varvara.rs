@@ -69,6 +69,14 @@ impl Varvara {
         }
     }
 
+    pub fn dei(&self, addr: u8) -> u8 {
+        self.io[addr as usize]
+    }
+
+    pub fn dei2(&self, addr: u8) -> u16 {
+        read_short(&self.io, addr)
+    }
+
     pub fn update_window(&mut self) {
         let rgb_buffer: Vec<_> = self.screen.buffer.iter()
             .map(|&i| self.system.index_to_0rgb(i))
@@ -85,4 +93,12 @@ pub fn write_short(mem: &mut [u8], addr: u8, short: u16) {
     let [high, low] = short.to_be_bytes();
     mem[addr_high as usize] = high;
     mem[addr_low as usize] = low;
+}
+
+pub fn read_short(mem: &[u8], addr: u8) -> u16 {
+    let addr_high = addr;
+    let addr_low = addr.wrapping_add(1);
+    let high = mem[addr_high as usize];
+    let low = mem[addr_low as usize];
+    u16::from_be_bytes([high, low])
 }

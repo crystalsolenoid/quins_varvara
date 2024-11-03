@@ -29,7 +29,7 @@ fn ascii_to_hex(input: &str) -> Vec<u8> {
 
     let chunks = ascii.chunks_exact(2);
     if ascii.len() % 2 != 0 {
-        panic!("Odd number of hex digits.");
+        panic!("Odd number of hex digits. {ascii:?}");
     }
 
     chunks.map(|a| {
