@@ -51,16 +51,45 @@ fn ascii_digit_to_u8(digit: u8) -> u8 {
 fn assemble_codes(input: &str) -> String {
     input
         .split_ascii_whitespace()
-        .map(|token| {
-            match token {
-                "ADD" => "18",
-                "SUB" => "19",
-                "LIT" => "80",
-                "DEO" => "17",
-                "DEI" => "16",
-                "BRK" => "00",
-                other => other
-            }
-        })
+        .map(|token| parse_code(token))
         .collect::<String>()
+}
+
+fn parse_code(token: &str) -> String {
+    let token_bytes = token.as_bytes();
+
+    if (token_bytes.len() < 3) | (token_bytes.len() > 6) {
+        // assume it isn't an opcode and return unmodified
+        return token.to_string()
+    }
+
+    let (opcode, flags) = token.split_at(3);
+
+    let mut hex = match opcode {
+        "ADD" => 0x18,
+        "SUB" => 0x19,
+        "LIT" => 0x80,
+        "DEO" => 0x17,
+        "DEI" => 0x16,
+        "BRK" => 0x00,
+        // assume it isn't an opcode and return unmodified
+        _ => return token.to_string()
+    };
+
+    // TODO don't let exceptions to the flag rules (like
+    // BRK and LIT) permit the hex value to get above 0xFF.
+    // Assert the order of the flags (2kr) for all present?
+    if flags.contains("k") {
+        hex += 0b100_00000;
+    }
+
+    if flags.contains("r") {
+        hex += 0b010_00000;
+    }
+
+    if flags.contains("2") {
+        hex += 0b001_00000;
+    }
+
+    return hex::encode(&[hex]);
 }
