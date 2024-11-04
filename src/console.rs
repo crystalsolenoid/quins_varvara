@@ -14,9 +14,15 @@ impl Console {
     }
 
     fn write(&mut self, byte: u8) -> io::Result<()> {
-        self.out.write(&[byte])?;
+        self.out.write_all(&[byte])?;
         self.out.flush()?;
         Ok(())
+    }
+}
+
+impl Default for Console {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

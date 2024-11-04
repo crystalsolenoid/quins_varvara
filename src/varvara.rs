@@ -98,6 +98,12 @@ impl Varvara {
     }
 }
 
+impl Default for Varvara {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub fn write_short(mem: &mut [u8], addr: u8, short: u16) {
     let addr_high = addr;
     let addr_low = addr.wrapping_add(1);

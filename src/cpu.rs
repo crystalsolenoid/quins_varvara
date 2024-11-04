@@ -57,6 +57,12 @@ impl Stack {
     }
 }
 
+impl Default for Stack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct Cpu {
     /// Working stack
     pub work: Stack,
@@ -83,7 +89,7 @@ impl Cpu {
     pub fn next_short(&mut self, varvara: &Varvara) -> u16 {
         let high_byte = self.next_byte(varvara);
         let low_byte = self.next_byte(varvara);
-        return u16::from_be_bytes([high_byte, low_byte]);
+        u16::from_be_bytes([high_byte, low_byte])
     }
 
     /// Do one operation
@@ -170,6 +176,12 @@ impl Cpu {
         } else {
             self.work.push(varvara.dei(addr));
         }
+    }
+}
+
+impl Default for Cpu {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

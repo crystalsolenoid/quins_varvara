@@ -22,10 +22,16 @@ impl Screen {
     }
 }
 
+impl Default for Screen {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Device for Screen {
     fn notify_deo(&mut self, _io: &[u8], addr: u8, byte: u8) {
         let port = addr & 0x0F;
-        let _ = match port {
+        match port {
             0xe => self.draw_pixel(byte),
             _ => panic!("Don't know how to write to port {port}!"),
         };

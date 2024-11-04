@@ -9,10 +9,9 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
 
     let hex: Vec<u8> = reader
         .lines()
-        .filter_map(|e| e.ok())
+        .map_while(Result::ok)
         .map(|line| assemble_codes(&line))
-        .map(|line| ascii_to_hex(&line))
-        .flatten()
+        .flat_map(|line| ascii_to_hex(&line))
         .collect();
 
     std::fs::write(output, &hex)?;
@@ -22,10 +21,7 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
 
 fn ascii_to_hex(input: &str) -> Vec<u8> {
     let mut ascii = input.as_bytes().to_owned();
-    ascii.retain(|x| match x {
-        b' ' | b'\n' => false,
-        _ => true,
-    });
+    ascii.retain(|x| !matches!(x, b' ' | b'\n'));
 
     let chunks = ascii.chunks_exact(2);
     if ascii.len() % 2 != 0 {
@@ -43,9 +39,9 @@ fn ascii_to_hex(input: &str) -> Vec<u8> {
 
 fn ascii_digit_to_u8(digit: u8) -> u8 {
     match digit {
-        n if b'0' <= n && n <= b'9' => n - b'0',
-        n if b'a' <= n && n <= b'f' => 10 + n - b'a',
-        n if b'A' <= n && n <= b'F' => 10 + n - b'A',
+        n if n.is_ascii_digit() => n - b'0',
+        n if (b'a'..=b'f').contains(&n) => 10 + n - b'a',
+        n if (b'A'..=b'F').contains(&n) => 10 + n - b'A',
         e => panic!("Unexpected character with ASCII code: {e}"),
     }
 }
@@ -53,7 +49,7 @@ fn ascii_digit_to_u8(digit: u8) -> u8 {
 fn assemble_codes(input: &str) -> String {
     input
         .split_ascii_whitespace()
-        .map(|token| parse_code(token))
+        .map(parse_code)
         .collect::<String>()
 }
 
@@ -97,5 +93,5 @@ fn parse_code(token: &str) -> String {
         hex += 0b001_00000;
     }
 
-    return hex::encode(&[hex]);
+    hex::encode([hex])
 }

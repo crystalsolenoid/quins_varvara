@@ -26,7 +26,13 @@ impl System {
     }
 
     pub fn index_to_0rgb(&self, color: u8) -> u32 {
-        self.colors[color as usize] as u32
+        self.colors[color as usize]
+    }
+}
+
+impl Default for System {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -43,8 +49,8 @@ impl Device for System {
     fn notify_deo2(&mut self, io: &[u8], addr: u8, _short: u16) {
         let port = addr & 0x0F;
         match port {
-            0x7..0xe => self.update_color(&io),
-            _ => (),
+            0x7..0xe => self.update_color(io),
+            _ => panic!("Don't know how to do that yet"),
         };
     }
 }
