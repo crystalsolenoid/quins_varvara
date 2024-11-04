@@ -1,4 +1,4 @@
-use super::varvara::{Device, Varvara};
+use super::varvara::Device;
 
 pub struct Screen {
     pub buffer: Vec<u8>,
@@ -23,7 +23,7 @@ impl Screen {
 }
 
 impl Device for Screen {
-    fn notify_deo(&mut self, io: &[u8], addr: u8, byte: u8) {
+    fn notify_deo(&mut self, _io: &[u8], addr: u8, byte: u8) {
         let port = addr & 0x0F;
         let _ = match port {
             0xe => self.draw_pixel(byte),
@@ -31,7 +31,7 @@ impl Device for Screen {
         };
     }
 
-    fn notify_deo2(&mut self, io: &[u8], addr: u8, short: u16) {
+    fn notify_deo2(&mut self, _io: &[u8], addr: u8, short: u16) {
         let port = addr & 0x0F;
         match port {
             0x8 => self.x = short,

@@ -1,12 +1,12 @@
-use minifb::{Key, Window, WindowOptions};
+use minifb::{Window, WindowOptions};
 
 use super::console::Console;
 use super::screen::Screen;
 use super::system::System;
 
 pub trait Device {
-    fn notify_deo(&mut self, io: &[u8], port: u8, value: u8) {}
-    fn notify_deo2(&mut self, io: &[u8], addr: u8, short: u16) {}
+    fn notify_deo(&mut self, _io: &[u8], _port: u8, _value: u8) {}
+    fn notify_deo2(&mut self, _io: &[u8], _addr: u8, _short: u16) {}
 }
 
 pub struct Varvara {
@@ -66,6 +66,7 @@ impl Varvara {
 
     pub fn deo2(&mut self, addr: u8, short: u16) {
         write_short(&mut self.io, addr, short);
+        #[allow(non_contiguous_range_endpoints)]
         match addr {
             // panicking if 0x_F because writing a short to that address would
             // mean writing half to one device and half to another
