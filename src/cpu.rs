@@ -13,6 +13,7 @@ pub struct LitFlags {
 
 pub enum Code {
     BRK,
+    INC(CodeFlags),
     DEO(CodeFlags),
     DEI(CodeFlags),
     ADD(CodeFlags),
@@ -27,6 +28,10 @@ pub struct Stack {
 impl Stack {
     pub fn new() -> Self {
         Self { bytes: Vec::with_capacity(0xFF) }
+    }
+
+    pub fn peek_mut(&mut self) -> &mut u8 {
+        self.bytes.last_mut().unwrap()
     }
 
     pub fn pop(&mut self) -> u8 {
@@ -84,6 +89,7 @@ impl Cpu {
         let raw_code = self.next_byte(varvara);
         let code = parse_code(raw_code);
         match code {
+            Code::INC(f) => self.inc(f),
             Code::ADD(f) => self.add(f),
             Code::SUB(f) => self.sub(f),
             Code::LIT(f) => self.lit(f, varvara),
@@ -92,6 +98,17 @@ impl Cpu {
             Code::BRK => return true,
         }
         false
+    }
+
+    /// Execute INC
+    pub fn inc(&mut self, f: CodeFlags) {
+        if f.short {
+            let a = self.work.pop2();
+            self.work.push2(a.wrapping_add(1));
+        } else {
+            let top = self.work.peek_mut();
+            *top = top.wrapping_add(1);
+        }
     }
 
     /// Execute ADD
@@ -169,6 +186,7 @@ pub fn parse_code(byte: u8) -> Code {
             } else {
                 Code::BRK
             },
+        0x01 => Code::INC(flags),
         0x16 => Code::DEI(flags),
         0x17 => Code::DEO(flags),
         0x18 => Code::ADD(flags),
