@@ -49,11 +49,12 @@ fn ascii_digit_to_u8(digit: u8) -> u8 {
 fn assemble_codes(input: String) -> String {
     input
         .split_ascii_whitespace()
+        .flat_map(transform_rune)
         .map(parse_code)
         .collect::<String>()
 }
 
-fn parse_code(token: &str) -> String {
+fn parse_code(token: String) -> String {
     let token_bytes = token.as_bytes();
 
     if (token_bytes.len() < 3) | (token_bytes.len() > 6) {
@@ -94,4 +95,35 @@ fn parse_code(token: &str) -> String {
     }
 
     hex::encode([hex])
+}
+
+fn transform_rune(token: &str) -> Vec<String> {
+    let (maybe_rune, other) = token.split_at(1);
+    match maybe_rune {
+        "%" => todo!(),
+        "|" => todo!(),
+        "$" => todo!(),
+        "@" => todo!(),
+        "&" => todo!(),
+        "#" => literal_hex(other),
+        "." => todo!(),
+        "," => todo!(),
+        ";" => todo!(),
+        ":" => todo!(),
+        "'" => todo!(),
+        "\"" => todo!(),
+        _ => vec![token.to_string()],
+    }
+}
+
+fn literal_hex(suffix: &str) -> Vec<String> {
+    let opcode = match suffix.as_bytes().len() {
+        2 => "LIT".to_string(),
+        4 => "LIT2".to_string(),
+        _ => panic!(
+            "Unexpected number of digits after a literal hex rune: {}",
+            suffix
+        ),
+    };
+    vec![opcode, suffix.to_string()]
 }
