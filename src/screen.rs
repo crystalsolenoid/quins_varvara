@@ -1,4 +1,4 @@
-use super::varvara::{Varvara, Device};
+use super::varvara::{Device, Varvara};
 
 pub struct Screen {
     pub buffer: Vec<u8>,
@@ -12,8 +12,7 @@ const HEIGHT: usize = 320;
 impl Screen {
     pub fn new() -> Self {
         let buffer = vec![0; WIDTH * HEIGHT];
-        Self { buffer,
-        x: 0, y: 0 }
+        Self { buffer, x: 0, y: 0 }
     }
 
     pub fn draw_pixel(&mut self, byte: u8) {
@@ -28,7 +27,7 @@ impl Device for Screen {
         let port = addr & 0x0F;
         let _ = match port {
             0xe => self.draw_pixel(byte),
-            _ => panic!("Don't know how to write to port {port}!")
+            _ => panic!("Don't know how to write to port {port}!"),
         };
     }
 
@@ -37,7 +36,7 @@ impl Device for Screen {
         match port {
             0x8 => self.x = short,
             0xa => self.y = short,
-            _ => panic!("Don't know how to write to port {port}!")
+            _ => panic!("Don't know how to write to port {port}!"),
         };
     }
 }

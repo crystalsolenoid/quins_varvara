@@ -1,18 +1,19 @@
+use std::fs::File;
 use std::io;
 use std::io::prelude::*;
-use std::fs::File;
 
-use minifb::{Key};
+use minifb::Key;
 
-use uxn::tal;
 use uxn::cpu::Cpu;
+use uxn::tal;
 use uxn::varvara::Varvara;
 
 fn main() -> io::Result<()> {
     let mut varvara = Varvara::new();
     let mut uxn = Cpu::new();
 
-    tal::assemble("roms/test/pixel_row.tal", "roms/test/pixel_row.rom").expect("failed to assemble");
+    tal::assemble("roms/test/pixel_row.tal", "roms/test/pixel_row.rom")
+        .expect("failed to assemble");
 
     let rom_load_area = &mut varvara.main[0x0100..];
     let mut file = File::open("roms/test/pixel_row.rom").expect("failed to open rom file");
@@ -25,7 +26,9 @@ fn main() -> io::Result<()> {
 
     loop {
         let terminate = uxn.step(&mut varvara);
-        if terminate { break; }
+        if terminate {
+            break;
+        }
     }
 
     while varvara.window.is_open() && !varvara.window.is_key_down(Key::Escape) {

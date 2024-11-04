@@ -22,12 +22,14 @@ pub enum Code {
 }
 
 pub struct Stack {
-    bytes: Vec::<u8>,
+    bytes: Vec<u8>,
 }
 
 impl Stack {
     pub fn new() -> Self {
-        Self { bytes: Vec::with_capacity(0xFF) }
+        Self {
+            bytes: Vec::with_capacity(0xFF),
+        }
     }
 
     pub fn peek_mut(&mut self) -> &mut u8 {
@@ -81,7 +83,7 @@ impl Cpu {
     pub fn next_short(&mut self, varvara: &Varvara) -> u16 {
         let high_byte = self.next_byte(varvara);
         let low_byte = self.next_byte(varvara);
-        return u16::from_be_bytes([high_byte, low_byte])
+        return u16::from_be_bytes([high_byte, low_byte]);
     }
 
     /// Do one operation
@@ -175,17 +177,23 @@ pub fn parse_code(byte: u8) -> Code {
     let code = 0b000_11111 & byte;
     let short = 0b001_00000 & byte != 0;
     let ret = 0b010_00000 & byte != 0;
-    if ret { todo!("Return flag not yet implemented! Code: {byte:0>2x?}"); }
+    if ret {
+        todo!("Return flag not yet implemented! Code: {byte:0>2x?}");
+    }
     let keep = 0b100_00000 & byte != 0;
-    if keep && code != 0x00 { todo!("Keep flag not yet implemented! Code: {byte:0>2x?}"); }
+    if keep && code != 0x00 {
+        todo!("Keep flag not yet implemented! Code: {byte:0>2x?}");
+    }
 
-    let flags = CodeFlags {keep, ret, short};
+    let flags = CodeFlags { keep, ret, short };
     match code {
-        0x00 => if keep {
-                Code::LIT(LitFlags {ret, short})
+        0x00 => {
+            if keep {
+                Code::LIT(LitFlags { ret, short })
             } else {
                 Code::BRK
-            },
+            }
+        }
         0x01 => Code::INC(flags),
         0x16 => Code::DEI(flags),
         0x17 => Code::DEO(flags),

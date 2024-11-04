@@ -1,7 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 
-use super::varvara::{Varvara, Device};
+use super::varvara::{Device, Varvara};
 
 pub struct Console {
     out: std::io::Stdout,
@@ -25,7 +25,7 @@ impl Device for Console {
         let port = addr & 0x0F;
         let _ = match port {
             0x8 => self.write(byte),
-            _ => panic!("Don't know how to write to port {port}!")
+            _ => panic!("Don't know how to write to port {port}!"),
         };
     }
 

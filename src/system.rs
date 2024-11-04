@@ -37,7 +37,7 @@ impl Device for System {
         match port {
             0xe => todo!("debug port"),
             0xf => todo!("state port"),
-            _ => panic!("Don't know how to write to port {port}!")
+            _ => panic!("Don't know how to write to port {port}!"),
         };
     }
 

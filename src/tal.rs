@@ -1,9 +1,9 @@
+use hex;
+use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
-use std::fs::File;
-use hex;
 
-pub fn assemble(input: &str, output: &str) -> std::io::Result <()> {
+pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
     let input = File::open(input)?;
     let reader = BufReader::new(input);
 
@@ -23,20 +23,22 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result <()> {
 fn ascii_to_hex(input: &str) -> Vec<u8> {
     let mut ascii = input.as_bytes().to_owned();
     ascii.retain(|x| match x {
-            b' ' | b'\n' => false,
-            _ => true
-        });
+        b' ' | b'\n' => false,
+        _ => true,
+    });
 
     let chunks = ascii.chunks_exact(2);
     if ascii.len() % 2 != 0 {
         panic!("Odd number of hex digits. {ascii:?}");
     }
 
-    chunks.map(|a| {
-        let high = ascii_digit_to_u8(a[0]) << 4;
-        let low = ascii_digit_to_u8(a[1]);
-        high + low
-    }).collect()
+    chunks
+        .map(|a| {
+            let high = ascii_digit_to_u8(a[0]) << 4;
+            let low = ascii_digit_to_u8(a[1]);
+            high + low
+        })
+        .collect()
 }
 
 fn ascii_digit_to_u8(digit: u8) -> u8 {
@@ -44,7 +46,7 @@ fn ascii_digit_to_u8(digit: u8) -> u8 {
         n if b'0' <= n && n <= b'9' => n - b'0',
         n if b'a' <= n && n <= b'f' => 10 + n - b'a',
         n if b'A' <= n && n <= b'F' => 10 + n - b'A',
-        e => panic!("Unexpected character with ASCII code: {e}")
+        e => panic!("Unexpected character with ASCII code: {e}"),
     }
 }
 
@@ -60,7 +62,7 @@ fn parse_code(token: &str) -> String {
 
     if (token_bytes.len() < 3) | (token_bytes.len() > 6) {
         // assume it isn't an opcode and return unmodified
-        return token.to_string()
+        return token.to_string();
     }
 
     let (opcode, flags) = token.split_at(3);
@@ -77,7 +79,7 @@ fn parse_code(token: &str) -> String {
         "DIV" => 0x1b,
         "SFT" => 0x1f,
         // assume it isn't an opcode and return unmodified
-        _ => return token.to_string()
+        _ => return token.to_string(),
     };
 
     // TODO don't let exceptions to the flag rules (like

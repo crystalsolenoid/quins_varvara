@@ -1,8 +1,8 @@
 use minifb::{Key, Window, WindowOptions};
 
-use super::system::System;
 use super::console::Console;
 use super::screen::Screen;
+use super::system::System;
 
 pub trait Device {
     fn notify_deo(&mut self, io: &[u8], port: u8, value: u8) {}
@@ -34,7 +34,7 @@ impl Varvara {
             "Test - ESC to exit",
             WIDTH,
             HEIGHT,
-            WindowOptions{
+            WindowOptions {
                 scale: minifb::Scale::X4,
                 ..WindowOptions::default()
             },
@@ -44,7 +44,14 @@ impl Varvara {
         });
         window.set_target_fps(30);
 
-        Self { main, io, system, console, screen, window }
+        Self {
+            main,
+            io,
+            system,
+            console,
+            screen,
+            window,
+        }
     }
 
     pub fn deo(&mut self, addr: u8, byte: u8) {
@@ -78,7 +85,10 @@ impl Varvara {
     }
 
     pub fn update_window(&mut self) {
-        let rgb_buffer: Vec<_> = self.screen.buffer.iter()
+        let rgb_buffer: Vec<_> = self
+            .screen
+            .buffer
+            .iter()
             .map(|&i| self.system.index_to_0rgb(i))
             .collect();
         self.window
