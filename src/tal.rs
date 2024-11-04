@@ -10,8 +10,8 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
     let hex: Vec<u8> = reader
         .lines()
         .map_while(Result::ok)
-        .map(|line| assemble_codes(&line))
-        .flat_map(|line| ascii_to_hex(&line))
+        .map(assemble_codes)
+        .flat_map(ascii_to_hex)
         .collect();
 
     std::fs::write(output, &hex)?;
@@ -19,7 +19,7 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn ascii_to_hex(input: &str) -> Vec<u8> {
+fn ascii_to_hex(input: String) -> Vec<u8> {
     let mut ascii = input.as_bytes().to_owned();
     ascii.retain(|x| !matches!(x, b' ' | b'\n'));
 
@@ -46,7 +46,7 @@ fn ascii_digit_to_u8(digit: u8) -> u8 {
     }
 }
 
-fn assemble_codes(input: &str) -> String {
+fn assemble_codes(input: String) -> String {
     input
         .split_ascii_whitespace()
         .map(parse_code)
