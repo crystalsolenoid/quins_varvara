@@ -17,8 +17,7 @@ fn main() -> io::Result<()> {
 
     let rom_load_area = &mut varvara.main[0x0100..];
     let mut file = File::open("roms/test/pixel_row.rom").expect("failed to open rom file");
-    let n = file.read(rom_load_area).expect("failed to read rom file");
-    print_bytes(&rom_load_area[..n]);
+    let _n = file.read(rom_load_area).expect("failed to read rom file");
 
     for i in varvara.screen.buffer.iter_mut() {
         *i = 0x00;
@@ -38,6 +37,6 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn print_bytes(data: &[u8]) {
+fn _print_bytes(data: &[u8]) {
     println!("{:0>2x?}", &data);
 }
