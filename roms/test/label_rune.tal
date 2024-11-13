@@ -1,0 +1,7 @@
+;arrow
+BRK
+
+@arrow ff
+
+(output:
+	a001 0400 ff)
