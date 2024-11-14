@@ -3,6 +3,13 @@ use winnow::error::{ContextError, ErrMode, ErrorKind, ParserError};
 use winnow::stream::Stream;
 use winnow::token::{any, one_of};
 use winnow::{PResult, Parser};
+use winnow::combinator::{repeat, alt};
+
+use crate::opcode::BASE_OPCODES;
+
+fn parse_base_opcode<'s>(input: &mut &'s str) -> PResult<&'s str> {
+    alt(BASE_OPCODES).parse_next(input)
+}
 
 fn hex_digit_to_u8(input: char) -> u8 {
     match input {
@@ -76,5 +83,13 @@ mod test {
         let mut input = "d .System/r";
         let output = parse_hexbyte.parse_next(&mut input);
         assert!(output.is_err());
+    }
+
+    #[test]
+    fn parses_base_opcode() {
+        let mut input = "SUB2 ;on-frame";
+        let output = parse_opcode.parse_next(&mut input).unwrap();
+        assert_eq!(input, "2 ;on-frame");
+        assert_eq!(output, "SUB");
     }
 }

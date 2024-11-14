@@ -1,3 +1,5 @@
+pub const BASE_OPCODES: [&'static str; 7] = ["BRK", "INC", "DEO", "DEI", "ADD", "SUB", "LIT"];
+
 pub struct CodeFlags {
     pub keep: bool,
     pub ret: bool,
