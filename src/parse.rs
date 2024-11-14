@@ -70,4 +70,11 @@ mod test {
         assert_eq!(input, " .System/r");
         assert_eq!(output, 0x4cfd);
     }
+
+    #[test]
+    fn single_digit_isnt_hexbyte() {
+        let mut input = "d .System/r";
+        let output = parse_hexbyte.parse_next(&mut input);
+        assert!(output.is_err());
+    }
 }
