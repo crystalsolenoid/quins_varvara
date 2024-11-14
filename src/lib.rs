@@ -5,3 +5,4 @@ pub mod screen;
 pub mod system;
 pub mod tal;
 pub mod varvara;
+pub mod opcode;
