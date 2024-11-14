@@ -11,21 +11,26 @@ fn parse_base_opcode<'s>(input: &mut &'s str) -> PResult<&'s str> {
     alt(BASE_OPCODES).parse_next(input)
 }
 
-// TODO return bools instead of &str's
-fn parse_opcode_flags<'s>(input: &mut &'s str) -> PResult<(&'s str, &'s str, &'s str)>{
+fn parse_opcode_flags<'s>(input: &mut &'s str) -> PResult<(bool, bool, bool)>{
     (parse_short_flag, parse_keep_flag, parse_return_flag).parse_next(input)
+
 }
 
-fn parse_short_flag<'s>(input: &mut &'s str) -> PResult<&'s str>{
-    repeat(0..=1, "2").map(|()| ()).take().parse_next(input)
+fn parse_short_flag<'s>(input: &mut &'s str) -> PResult<bool> {
+    let flag = repeat(0..=1, "2").map(|()| ()).take().parse_next(input)?;
+    Ok(flag.len() == 1)
 }
 
-fn parse_return_flag<'s>(input: &mut &'s str) -> PResult<&'s str>{
-    repeat(0..=1, "r").map(|()| ()).take().parse_next(input)
+fn parse_return_flag<'s>(input: &mut &'s str) -> PResult<bool>{
+    let flag = repeat(0..=1, "r").map(|()| ()).take().parse_next(input)?;
+    Ok(flag.len() == 1)
 }
 
-fn parse_keep_flag<'s>(input: &mut &'s str) -> PResult<&'s str>{
-    repeat(0..=1, "k").map(|()| ()).take().parse_next(input)
+fn parse_keep_flag<'s>(input: &mut &'s str) -> PResult<bool>{
+    let flag = repeat(0..=1, "k").map(|()| ()).take().parse_next(input)?;
+    Ok(flag.len() == 1)
+}
+
 }
 
 fn hex_digit_to_u8(input: char) -> u8 {
@@ -107,7 +112,7 @@ mod test {
         let mut input = "2k ;on-frame";
         let output = parse_opcode_flags.parse_next(&mut input).unwrap();
         assert_eq!(input, " ;on-frame");
-        assert_eq!(output, ("2","k",""));
+        assert_eq!(output, (true,true,false));
     }
 
     #[test]
