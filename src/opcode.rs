@@ -21,6 +21,19 @@ pub enum Code {
     LIT(LitFlags),
 }
 
+pub fn encode_base_code(code: &str) -> u8 {
+    match code {
+        "BRK" => 0x00,
+        "INC" => 0x01,
+        "DEI" => 0x16,
+        "DEO" => 0x17,
+        "ADD" => 0x18,
+        "SUB" => 0x19,
+        "LIT" => 0x80,
+        _ => panic!("Unrecognized opcode: {code}"),
+    }
+}
+
 pub fn parse_code(byte: u8) -> Code {
     let code = 0b000_11111 & byte;
     let short = 0b001_00000 & byte != 0;

@@ -5,10 +5,14 @@ use winnow::token::{any, one_of};
 use winnow::{PResult, Parser};
 use winnow::combinator::{repeat, alt};
 
-use crate::opcode::BASE_OPCODES;
+use crate::opcode::{BASE_OPCODES, encode_base_code};
 
 fn parse_base_opcode<'s>(input: &mut &'s str) -> PResult<&'s str> {
     alt(BASE_OPCODES).parse_next(input)
+}
+
+fn calculate_base_opcode(input: &mut & str) -> PResult<u8> {
+    parse_base_opcode.map(|s: &str| encode_base_code(s)).parse_next(input)
 }
 
 fn parse_opcode_flags<'s>(input: &mut &'s str) -> PResult<(bool, bool, bool)>{
@@ -113,6 +117,13 @@ mod test {
         let output = parse_opcode_flags.parse_next(&mut input).unwrap();
         assert_eq!(input, " ;on-frame");
         assert_eq!(output, (true,true,false));
+    }
+
+    #[test]
+    fn parses_base_opcode_byte() {
+        let mut input = "INC ;on-frame";
+        let output = calculate_base_opcode.parse_next(&mut input).unwrap();
+        assert_eq!(output, 0x01);
     }
 
     #[test]
