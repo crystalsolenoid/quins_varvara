@@ -170,4 +170,11 @@ mod test {
         assert_eq!(input, "2 ;on-frame");
         assert_eq!(output, "SUB");
     }
+
+    #[test]
+    fn errs_on_LITk() {
+        let mut input = "LITk 1234";
+        let output = parse_opcode.parse_next(&mut input);
+        assert!(output.is_err());
+    }
 }
