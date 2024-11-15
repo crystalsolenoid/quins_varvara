@@ -1,11 +1,15 @@
-use winnow::ascii::hex_digit1;
+use winnow::ascii::{hex_digit1, multispace1};
 use winnow::error::{ContextError, ErrMode, ErrorKind, ParserError};
 use winnow::stream::Stream;
 use winnow::token::{any, one_of, take_until};
 use winnow::{PResult, Parser};
-use winnow::combinator::{repeat, alt};
+use winnow::combinator::{repeat, alt, separated};
 
 use crate::opcode::{BASE_OPCODES, encode_base_code};
+
+fn parse_tal(input: &mut &str) -> PResult<Vec<Option<u8>>> {
+    separated(0.., parse_hexbyte, multispace1).parse_next(input)
+}
 
 fn parse_comment(input: &mut &str) -> PResult<Option<u8>> {
     ('(',
@@ -93,16 +97,17 @@ const HEX_DIGITS: [char; 16] = [
 ];
 
 // TODO use an "in sequence" combinator?
-fn parse_hexbyte(input: &mut &str) -> PResult<u8> {
+fn parse_hexbyte(input: &mut &str) -> PResult<Option<u8>> {
     let high = one_of(HEX_DIGITS).parse_next(input)?;
     let low = one_of(HEX_DIGITS).parse_next(input)?;
-    Ok((hex_digit_to_u8(high) << 4) + hex_digit_to_u8(low))
+    let byte = (hex_digit_to_u8(high) << 4) + hex_digit_to_u8(low);
+    Ok(Some(byte))
 }
 
 // TODO use an "in sequence" combinator?
 fn parse_hexshort(input: &mut &str) -> PResult<u16> {
-    let high: u16 = parse_hexbyte.parse_next(input)?.into();
-    let low: u16 = parse_hexbyte.parse_next(input)?.into();
+    let high: u16 = parse_hexbyte.parse_next(input)?.unwrap().into();
+    let low: u16 = parse_hexbyte.parse_next(input)?.unwrap().into();
     let short = (high << 8) + low;
     Ok(short)
 }
@@ -118,7 +123,7 @@ mod test {
         let output = parse_hexbyte.parse_next(&mut input).unwrap();
 
         assert_eq!(input, " .System/r");
-        assert_eq!(output, 0xfd);
+        assert_eq!(output, Some(0xfd));
 
         assert!(parse_hexbyte.parse_next(&mut input).is_err());
     }
@@ -191,5 +196,12 @@ mod test {
         let output = parse_comment.parse_next(&mut input).unwrap();
         assert_eq!(input, " SUB2 INC");
         assert_eq!(output, None);
+    }
+
+    #[test]
+    fn parses_bytes_only_space_delimited() {
+        let input = "a0 ff 80";
+        let output = parse_tal.parse(input).unwrap();
+        assert_eq!(output, vec!(Some(0xa0), Some(0xff), Some(0x80)));
     }
 }
