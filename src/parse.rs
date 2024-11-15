@@ -118,7 +118,7 @@ mod test {
     #[test]
     fn parses_base_opcode() {
         let mut input = "SUB2 ;on-frame";
-        let output = parse_opcode.parse_next(&mut input).unwrap();
+        let output = parse_base_opcode.parse_next(&mut input).unwrap();
         assert_eq!(input, "2 ;on-frame");
         assert_eq!(output, "SUB");
     }
