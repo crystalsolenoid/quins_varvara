@@ -1,11 +1,18 @@
 use winnow::ascii::hex_digit1;
 use winnow::error::{ContextError, ErrMode, ErrorKind, ParserError};
 use winnow::stream::Stream;
-use winnow::token::{any, one_of};
+use winnow::token::{any, one_of, take_until};
 use winnow::{PResult, Parser};
 use winnow::combinator::{repeat, alt};
 
 use crate::opcode::{BASE_OPCODES, encode_base_code};
+
+fn parse_comment(input: &mut &str) -> PResult<Option<u8>> {
+    ('(',
+    take_until(0.., ')'),
+    ')').parse_next(input)?;
+    Ok(None)
+}
 
 fn parse_base_opcode<'s>(input: &mut &'s str) -> PResult<&'s str> {
     alt(BASE_OPCODES).parse_next(input)
@@ -176,5 +183,13 @@ mod test {
         let mut input = "LITk 1234";
         let output = parse_opcode.parse_next(&mut input);
         assert!(output.is_err());
+    }
+
+    #[test]
+    fn comment() {
+        let mut input = "( Comment ) SUB2 INC";
+        let output = parse_comment.parse_next(&mut input).unwrap();
+        assert_eq!(input, " SUB2 INC");
+        assert_eq!(output, None);
     }
 }
