@@ -15,6 +15,21 @@ fn calculate_base_opcode(input: &mut & str) -> PResult<u8> {
     parse_base_opcode.map(|s: &str| encode_base_code(s)).parse_next(input)
 }
 
+fn calculate_flags(input: &mut &str) -> PResult<u8> {
+    let flags = parse_opcode_flags.parse_next(input)?;
+    let mut byte = 0;
+    if flags.0 {
+        byte = byte | 0b001_00000;
+    }
+    if flags.1 {
+        byte = byte | 0b100_00000;
+    }
+    if flags.2 {
+        byte = byte | 0b010_00000;
+    }
+    Ok(byte)
+}
+
 fn parse_opcode_flags<'s>(input: &mut &'s str) -> PResult<(bool, bool, bool)>{
     (parse_short_flag, parse_keep_flag, parse_return_flag).parse_next(input)
 
@@ -35,6 +50,13 @@ fn parse_keep_flag<'s>(input: &mut &'s str) -> PResult<bool>{
     Ok(flag.len() == 1)
 }
 
+fn parse_opcode(input: &mut &str) -> PResult<u8> {
+    let (base, flags) = (calculate_base_opcode, calculate_flags).parse_next(input)?;
+    // TODO edge case error:
+    // if base & flags != 0, that's when we return an error
+    // because it means an invalid flag has been used
+    // ie LITk
+    Ok(base | flags)
 }
 
 fn hex_digit_to_u8(input: char) -> u8 {
@@ -112,6 +134,14 @@ mod test {
     }
 
     #[test]
+    fn parses_opcode() {
+        let mut input = "SUB2 ;on-frame";
+        let output = parse_opcode.parse_next(&mut input).unwrap();
+        assert_eq!(input, " ;on-frame");
+        assert_eq!(output, 0x39);
+    }
+
+    #[test]
     fn parses_flags() {
         let mut input = "2k ;on-frame";
         let output = parse_opcode_flags.parse_next(&mut input).unwrap();
@@ -124,6 +154,13 @@ mod test {
         let mut input = "INC ;on-frame";
         let output = calculate_base_opcode.parse_next(&mut input).unwrap();
         assert_eq!(output, 0x01);
+    }
+
+    #[test]
+    fn fails_on_opcode_then_nonsense() {
+        let mut input = "SUB2abc ";
+        let output = parse_opcode.parse_next(&mut input);
+        assert!(output.is_err());
     }
 
     #[test]
