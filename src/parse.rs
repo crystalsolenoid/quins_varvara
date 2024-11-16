@@ -11,7 +11,8 @@ pub fn parse_tal(input: &mut &str) -> PResult<Vec<u8>> {
 }
 
 fn next_tokens(input: &mut &str) -> PResult<Vec<u8>> {
-    let out = alt((parse_rune, parse_opcode, parse_many_hexbytes)).parse_next(input)?;
+    let out =
+        alt((parse_comment, parse_rune, parse_opcode, parse_many_hexbytes)).parse_next(input)?;
     Ok(out)
 }
 
@@ -60,9 +61,9 @@ fn _take_whitespace0<'s>(input: &mut &'s str) -> PResult<&'s str> {
     take_while(0.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
-fn parse_comment(input: &mut &str) -> PResult<Option<u8>> {
+fn parse_comment(input: &mut &str) -> PResult<Vec<u8>> {
     ('(', take_until(0.., ')'), ')').parse_next(input)?;
-    Ok(None)
+    Ok(vec![])
 }
 
 fn parse_base_opcode<'s>(input: &mut &'s str) -> PResult<&'s str> {
@@ -248,7 +249,7 @@ mod test {
         let mut input = "( Comment ) SUB2 INC";
         let output = parse_comment.parse_next(&mut input).unwrap();
         assert_eq!(input, " SUB2 INC");
-        assert_eq!(output, None);
+        assert_eq!(output, vec!());
     }
 
     #[test]
@@ -275,6 +276,13 @@ mod test {
     #[test]
     fn parses_bytes_and_opcodes() {
         let input = "a0 BRK ff80 LIT";
+        let output = parse_tal.parse(input).unwrap();
+        assert_eq!(output, vec!(0xa0, 0x00, 0xff, 0x80, 0x80));
+    }
+
+    #[test]
+    fn ignores_comment() {
+        let input = "a0 BRK (test comment!) ff80 LIT";
         let output = parse_tal.parse(input).unwrap();
         assert_eq!(output, vec!(0xa0, 0x00, 0xff, 0x80, 0x80));
     }
