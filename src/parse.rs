@@ -8,31 +8,14 @@ use winnow::combinator::{eof, repeat, alt, separated, preceded};
 use crate::opcode::{BASE_OPCODES, encode_base_code};
 
 pub fn parse_tal(input: &mut &str) -> PResult<Vec<u8>> {
-    let bytes: Vec<Option<u8>> = separated(0.., next_token, take_whitespace1)
+    let bytes: Vec<Vec<u8>> = separated(0.., next_tokens, take_whitespace1)
         .parse_next(input)?;
     Ok(bytes.into_iter().flatten().collect())
 }
 
-pub fn parse_tal_old(input: &mut &str) -> PResult<Vec<u8>> {
-    repeat(0.., next_token)
-        .fold(Vec::new, |mut acc: Vec<u8>, item| {
-            if let Some(byte) = item {
-                acc.push(byte);
-            }
-            acc
-        }
-    ).parse_next(input)
-}
-
-fn next_token(input: &mut &str) -> PResult<Option<u8>> {
-    let out = alt((parse_opcode, parse_hexbyte)).parse_next(input);
-    out
-}
-
-fn next_tokens(input: &mut &str) -> PResult<Vec<Option<u8>>> {
-    let out = alt((parse_opcode, parse_hexbyte)).parse_next(input);
-    todo!();
-//    out
+fn next_tokens(input: &mut &str) -> PResult<Vec<u8>> {
+    let out = alt((parse_opcode, parse_many_hexbytes)).parse_next(input)?;
+    Ok(out)
 }
 
 fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
@@ -93,13 +76,13 @@ fn parse_keep_flag<'s>(input: &mut &'s str) -> PResult<bool>{
     Ok(flag.len() == 1)
 }
 
-fn parse_opcode(input: &mut &str) -> PResult<Option<u8>> {
+fn parse_opcode(input: &mut &str) -> PResult<Vec<u8>> {
     let (base, flags) = (calculate_base_opcode, calculate_flags).parse_next(input)?;
     // TODO edge case error:
     // if base & flags != 0, that's when we return an error
     // because it means an invalid flag has been used
     // ie LITk
-    Ok(Some(base | flags))
+    Ok(vec!(base | flags))
 }
 
 fn hex_digit_to_u8(input: char) -> u8 {
@@ -129,23 +112,22 @@ const HEX_DIGITS: [char; 16] = [
 ];
 
 // TODO use an "in sequence" combinator?
-fn parse_hexbyte(input: &mut &str) -> PResult<Option<u8>> {
+fn parse_hexbyte(input: &mut &str) -> PResult<u8> {
     let high = one_of(HEX_DIGITS).parse_next(input)?;
     let low = one_of(HEX_DIGITS).parse_next(input)?;
     let byte = (hex_digit_to_u8(high) << 4) + hex_digit_to_u8(low);
-    Ok(Some(byte))
+    Ok(byte)
 }
 
-fn parse_many_hexbytes(input: &mut &str) -> PResult<Vec<Option<u8>>> {
+fn parse_many_hexbytes(input: &mut &str) -> PResult<Vec<u8>> {
     repeat(1.., parse_hexbyte).parse_next(input)
 }
 
 // TODO use an "in sequence" combinator?
-fn parse_hexshort(input: &mut &str) -> PResult<u16> {
-    let high: u16 = parse_hexbyte.parse_next(input)?.unwrap().into();
-    let low: u16 = parse_hexbyte.parse_next(input)?.unwrap().into();
-    let short = (high << 8) + low;
-    Ok(short)
+fn parse_hexshort(input: &mut &str) -> PResult<[u8; 2]> {
+    let high = parse_hexbyte.parse_next(input)?;
+    let low = parse_hexbyte.parse_next(input)?;
+    Ok([high, low])
 }
 
 #[cfg(test)]
@@ -159,7 +141,7 @@ mod test {
         let output = parse_hexbyte.parse_next(&mut input).unwrap();
 
         assert_eq!(input, " .System/r");
-        assert_eq!(output, Some(0xfd));
+        assert_eq!(output, 0xfd);
 
         assert!(parse_hexbyte.parse_next(&mut input).is_err());
     }
@@ -171,7 +153,7 @@ mod test {
         let output = parse_hexshort.parse_next(&mut input).unwrap();
 
         assert_eq!(input, " .System/r");
-        assert_eq!(output, 0x4cfd);
+        assert_eq!(output, [0x4c, 0xfd]);
     }
 
     #[test]
@@ -186,7 +168,7 @@ mod test {
         let mut input = "SUB2 ;on-frame";
         let output = parse_opcode.parse_next(&mut input).unwrap();
         assert_eq!(input, " ;on-frame");
-        assert_eq!(output, Some(0x39));
+        assert_eq!(output, vec!(0x39));
     }
 
     #[test]
@@ -245,7 +227,7 @@ mod test {
     fn parse_unseparated_bytes() {
         let input = "a0ff80";
         let output = parse_many_hexbytes.parse(input).unwrap();
-        assert_eq!(output, vec!(Some(0xa0), Some(0xff), Some(0x80)));
+        assert_eq!(output, vec!(0xa0, 0xff, 0x80));
     }
 
     #[test]
