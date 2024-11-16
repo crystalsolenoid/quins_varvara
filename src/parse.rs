@@ -1,7 +1,5 @@
-use winnow::ascii::{hex_digit1, multispace1};
-use winnow::combinator::{alt, dispatch, eof, fail, preceded, repeat, separated};
-use winnow::error::{ContextError, ErrMode, ErrorKind, ParserError};
-use winnow::stream::{AsChar, Stream};
+use winnow::combinator::{alt, dispatch, fail, repeat, separated};
+use winnow::stream::AsChar;
 use winnow::token::{any, one_of, take_until, take_while};
 use winnow::{PResult, Parser};
 
@@ -17,7 +15,7 @@ fn next_tokens(input: &mut &str) -> PResult<Vec<u8>> {
     Ok(out)
 }
 
-fn parse_todo(input: &mut &str) -> PResult<Vec<u8>> {
+fn parse_todo(_input: &mut &str) -> PResult<Vec<u8>> {
     todo!();
 }
 
@@ -58,7 +56,7 @@ fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
     take_while(1.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
-fn take_whitespace0<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn _take_whitespace0<'s>(input: &mut &'s str) -> PResult<&'s str> {
     take_while(0.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
@@ -81,32 +79,32 @@ fn calculate_flags(input: &mut &str) -> PResult<u8> {
     let flags = parse_opcode_flags.parse_next(input)?;
     let mut byte = 0;
     if flags.0 {
-        byte = byte | 0b001_00000;
+        byte |= 0b001_00000;
     }
     if flags.1 {
-        byte = byte | 0b100_00000;
+        byte |= 0b100_00000;
     }
     if flags.2 {
-        byte = byte | 0b010_00000;
+        byte |= 0b010_00000;
     }
     Ok(byte)
 }
 
-fn parse_opcode_flags<'s>(input: &mut &'s str) -> PResult<(bool, bool, bool)> {
+fn parse_opcode_flags(input: &mut &str) -> PResult<(bool, bool, bool)> {
     (parse_short_flag, parse_keep_flag, parse_return_flag).parse_next(input)
 }
 
-fn parse_short_flag<'s>(input: &mut &'s str) -> PResult<bool> {
+fn parse_short_flag(input: &mut &str) -> PResult<bool> {
     let flag = repeat(0..=1, "2").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
 
-fn parse_return_flag<'s>(input: &mut &'s str) -> PResult<bool> {
+fn parse_return_flag(input: &mut &str) -> PResult<bool> {
     let flag = repeat(0..=1, "r").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
 
-fn parse_keep_flag<'s>(input: &mut &'s str) -> PResult<bool> {
+fn parse_keep_flag(input: &mut &str) -> PResult<bool> {
     let flag = repeat(0..=1, "k").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
