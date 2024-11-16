@@ -3,7 +3,7 @@ use winnow::error::{ContextError, ErrMode, ErrorKind, ParserError};
 use winnow::stream::{Stream, AsChar};
 use winnow::token::{any, one_of, take_until, take_while};
 use winnow::{PResult, Parser};
-use winnow::combinator::{eof, repeat, alt, separated, preceded};
+use winnow::combinator::{eof, repeat, alt, separated, preceded, fail};
 
 use crate::opcode::{BASE_OPCODES, encode_base_code};
 
@@ -78,10 +78,12 @@ fn parse_keep_flag<'s>(input: &mut &'s str) -> PResult<bool>{
 
 fn parse_opcode(input: &mut &str) -> PResult<Vec<u8>> {
     let (base, flags) = (calculate_base_opcode, calculate_flags).parse_next(input)?;
-    // TODO edge case error:
     // if base & flags != 0, that's when we return an error
     // because it means an invalid flag has been used
     // ie LITk
+    if base & flags != 0 {
+        return fail(input);
+    }
     Ok(vec!(base | flags))
 }
 
