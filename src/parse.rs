@@ -1,14 +1,30 @@
 use winnow::ascii::{hex_digit1, multispace1};
 use winnow::error::{ContextError, ErrMode, ErrorKind, ParserError};
-use winnow::stream::Stream;
-use winnow::token::{any, one_of, take_until};
+use winnow::stream::{Stream, AsChar};
+use winnow::token::{any, one_of, take_until, take_while};
 use winnow::{PResult, Parser};
 use winnow::combinator::{repeat, alt, separated};
 
 use crate::opcode::{BASE_OPCODES, encode_base_code};
 
-fn parse_tal(input: &mut &str) -> PResult<Vec<Option<u8>>> {
-    separated(0.., parse_hexbyte, multispace1).parse_next(input)
+pub fn parse_tal(input: &mut &str) -> PResult<Vec<u8>> {
+    repeat(0.., next_token)
+        .fold(Vec::new, |mut acc: Vec<u8>, item| {
+            if let Some(byte) = item {
+                acc.push(byte);
+            }
+            acc
+        }
+    ).parse_next(input)
+}
+
+fn next_token(input: &mut &str) -> PResult<Option<u8>> {
+    alt((take_whitespace, parse_hexbyte)).parse_next(input)
+}
+
+fn take_whitespace<'s>(input: &mut &'s str) -> PResult<Option<u8>> {
+    take_while(1..,(AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)?;
+    Ok(None)
 }
 
 fn parse_comment(input: &mut &str) -> PResult<Option<u8>> {
@@ -104,6 +120,10 @@ fn parse_hexbyte(input: &mut &str) -> PResult<Option<u8>> {
     Ok(Some(byte))
 }
 
+fn parse_many_hexbytes(input: &mut &str) -> PResult<Vec<Option<u8>>> {
+    repeat(1.., parse_hexbyte).parse_next(input)
+}
+
 // TODO use an "in sequence" combinator?
 fn parse_hexshort(input: &mut &str) -> PResult<u16> {
     let high: u16 = parse_hexbyte.parse_next(input)?.unwrap().into();
@@ -170,8 +190,8 @@ mod test {
 
     #[test]
     fn fails_on_opcode_then_nonsense() {
-        let mut input = "SUB2abc ";
-        let output = parse_opcode.parse_next(&mut input);
+        let input = "SUB2abc ";
+        let output = parse_tal.parse(input);
         assert!(output.is_err());
     }
 
@@ -202,6 +222,20 @@ mod test {
     fn parses_bytes_only_space_delimited() {
         let input = "a0 ff 80";
         let output = parse_tal.parse(input).unwrap();
+        assert_eq!(output, vec!(0xa0, 0xff, 0x80));
+    }
+
+    #[test]
+    fn parse_unseparated_bytes() {
+        let input = "a0ff80";
+        let output = parse_many_hexbytes.parse(input).unwrap();
         assert_eq!(output, vec!(Some(0xa0), Some(0xff), Some(0x80)));
+    }
+
+    #[test]
+    fn parses_bytes() {
+        let input = "a0 ff80";
+        let output = parse_tal.parse(input).unwrap();
+        assert_eq!(output, vec!(0xa0, 0xff, 0x80));
     }
 }
