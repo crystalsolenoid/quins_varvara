@@ -5,24 +5,30 @@ use winnow::{PResult, Parser};
 
 use crate::opcode::{encode_base_code, BASE_OPCODES};
 
-pub fn parse_tal(input: &mut &str) -> PResult<Vec<u8>> {
+pub enum ROMItem<'s> {
+    Byte(u8),
+    Location(&'s str),
+}
+
+pub fn parse_tal<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     take_whitespace0.parse_next(input)?;
-    let bytes: Vec<Vec<u8>> = separated(0.., next_tokens, take_whitespace1).parse_next(input)?;
+    let bytes: Vec<Vec<ROMItem>> =
+        separated(0.., next_tokens, take_whitespace1).parse_next(input)?;
     take_whitespace0.parse_next(input)?;
     Ok(bytes.into_iter().flatten().collect())
 }
 
-fn next_tokens(input: &mut &str) -> PResult<Vec<u8>> {
+fn next_tokens<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     let out =
         alt((parse_comment, parse_rune, parse_opcode, parse_many_hexbytes)).parse_next(input)?;
     Ok(out)
 }
 
-fn parse_todo(_input: &mut &str) -> PResult<Vec<u8>> {
+fn parse_todo<'s>(_input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     todo!();
 }
 
-fn parse_rune(input: &mut &str) -> PResult<Vec<u8>> {
+fn parse_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     dispatch! {any;
         '%' => parse_todo,
         '|' => parse_todo,
@@ -36,23 +42,23 @@ fn parse_rune(input: &mut &str) -> PResult<Vec<u8>> {
         ':' => parse_todo,
         '\'' => parse_todo,
         '"' => parse_todo,
-        _ => fail::<_, Vec<u8>, _>,
+        _ => fail::<_, Vec<ROMItem>, _>,
     }
     .parse_next(input)
 }
 
-fn lit_rune(input: &mut &str) -> PResult<Vec<u8>> {
+fn lit_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     alt((lit_rune_short, lit_rune_byte)).parse_next(input)
 }
 
-fn lit_rune_byte(input: &mut &str) -> PResult<Vec<u8>> {
+fn lit_rune_byte<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     let byte = parse_hexbyte.parse_next(input)?;
-    Ok(vec![0x80, byte])
+    Ok(vec![ROMItem::Byte(0x80), byte])
 }
 
-fn lit_rune_short(input: &mut &str) -> PResult<Vec<u8>> {
+fn lit_rune_short<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     let short = parse_hexshort.parse_next(input)?;
-    Ok(vec![0xa0, short.0, short.1])
+    Ok(vec![ROMItem::Byte(0xa0), short.0, short.1])
 }
 
 fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
@@ -63,7 +69,7 @@ fn take_whitespace0<'s>(input: &mut &'s str) -> PResult<&'s str> {
     take_while(0.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
-fn parse_comment(input: &mut &str) -> PResult<Vec<u8>> {
+fn parse_comment<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     ('(', take_until(0.., ')'), ')').parse_next(input)?;
     Ok(vec![])
 }
@@ -112,7 +118,7 @@ fn parse_keep_flag(input: &mut &str) -> PResult<bool> {
     Ok(flag.len() == 1)
 }
 
-fn parse_opcode(input: &mut &str) -> PResult<Vec<u8>> {
+fn parse_opcode<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     let (base, flags) = (calculate_base_opcode, calculate_flags).parse_next(input)?;
     // if base & flags != 0, that's when we return an error
     // because it means an invalid flag has been used
@@ -120,7 +126,7 @@ fn parse_opcode(input: &mut &str) -> PResult<Vec<u8>> {
     if base & flags != 0 {
         return fail(input);
     }
-    Ok(vec![base | flags])
+    Ok(vec![ROMItem::Byte(base | flags)])
 }
 
 fn hex_digit_to_u8(input: char) -> u8 {
@@ -150,19 +156,19 @@ const HEX_DIGITS: [char; 16] = [
 ];
 
 // TODO use an "in sequence" combinator?
-fn parse_hexbyte(input: &mut &str) -> PResult<u8> {
+fn parse_hexbyte<'s>(input: &mut &'s str) -> PResult<ROMItem<'s>> {
     let high = one_of(HEX_DIGITS).parse_next(input)?;
     let low = one_of(HEX_DIGITS).parse_next(input)?;
     let byte = (hex_digit_to_u8(high) << 4) + hex_digit_to_u8(low);
-    Ok(byte)
+    Ok(ROMItem::Byte(byte))
 }
 
-fn parse_many_hexbytes(input: &mut &str) -> PResult<Vec<u8>> {
+fn parse_many_hexbytes<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     repeat(1.., parse_hexbyte).parse_next(input)
 }
 
 // TODO use an "in sequence" combinator?
-fn parse_hexshort(input: &mut &str) -> PResult<(u8, u8)> {
+fn parse_hexshort<'s>(input: &mut &'s str) -> PResult<(ROMItem<'s>, ROMItem<'s>)> {
     let high = parse_hexbyte.parse_next(input)?;
     let low = parse_hexbyte.parse_next(input)?;
     Ok((high, low))
