@@ -6,7 +6,9 @@ use winnow::{PResult, Parser};
 use crate::opcode::{encode_base_code, BASE_OPCODES};
 
 pub fn parse_tal(input: &mut &str) -> PResult<Vec<u8>> {
+    take_whitespace0.parse_next(input)?;
     let bytes: Vec<Vec<u8>> = separated(0.., next_tokens, take_whitespace1).parse_next(input)?;
+    take_whitespace0.parse_next(input)?;
     Ok(bytes.into_iter().flatten().collect())
 }
 
@@ -57,7 +59,7 @@ fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
     take_while(1.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
-fn _take_whitespace0<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn take_whitespace0<'s>(input: &mut &'s str) -> PResult<&'s str> {
     take_while(0.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
@@ -313,5 +315,11 @@ mod test {
         let output_rune = parse_tal.parse("#dcf2").unwrap();
         let output_opcode = parse_tal.parse("LIT2 dcf2").unwrap();
         assert_eq!(output_rune, output_opcode);
+    }
+
+    #[test]
+    fn parses_multiline() {
+        let input = "#2ce9 #08 DEO2\n";
+        let output = parse_tal.parse(input).unwrap();
     }
 }
