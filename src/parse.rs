@@ -3,7 +3,7 @@ use winnow::error::{ContextError, ErrMode, ErrorKind, ParserError};
 use winnow::stream::{Stream, AsChar};
 use winnow::token::{any, one_of, take_until, take_while};
 use winnow::{PResult, Parser};
-use winnow::combinator::{eof, repeat, alt, separated, preceded, fail};
+use winnow::combinator::{eof, repeat, alt, separated, preceded, fail, dispatch};
 
 use crate::opcode::{BASE_OPCODES, encode_base_code};
 
@@ -14,8 +14,44 @@ pub fn parse_tal(input: &mut &str) -> PResult<Vec<u8>> {
 }
 
 fn next_tokens(input: &mut &str) -> PResult<Vec<u8>> {
-    let out = alt((parse_opcode, parse_many_hexbytes)).parse_next(input)?;
+    let out = alt((parse_rune, parse_opcode, parse_many_hexbytes)).parse_next(input)?;
     Ok(out)
+}
+
+fn parse_todo(input: &mut &str) -> PResult<Vec<u8>> {
+    todo!();
+}
+
+fn parse_rune(input: &mut &str) -> PResult<Vec<u8>> {
+    dispatch! {any;
+        '%' => parse_todo,
+        '|' => parse_todo,
+        '$' => parse_todo,
+        '@' => parse_todo,
+        '&' => parse_todo,
+        '#' => lit_rune,
+        '.' => parse_todo,
+        ',' => parse_todo,
+        ';' => parse_todo,
+        ':' => parse_todo,
+        '\'' => parse_todo,
+        '"' => parse_todo,
+        _ => fail::<_, Vec<u8>, _>,
+    }.parse_next(input)
+}
+
+fn lit_rune(input: &mut &str) -> PResult<Vec<u8>> {
+    alt((lit_rune_short, lit_rune_byte)).parse_next(input)
+}
+
+fn lit_rune_byte(input: &mut &str) -> PResult<Vec<u8>> {
+    let byte = parse_hexbyte.parse_next(input)?;
+    Ok(vec!(0x80, byte))
+}
+
+fn lit_rune_short(input: &mut &str) -> PResult<Vec<u8>> {
+    let short = parse_hexshort.parse_next(input)?;
+    Ok(vec!(0xa0, short.0, short.1))
 }
 
 fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
@@ -126,10 +162,10 @@ fn parse_many_hexbytes(input: &mut &str) -> PResult<Vec<u8>> {
 }
 
 // TODO use an "in sequence" combinator?
-fn parse_hexshort(input: &mut &str) -> PResult<[u8; 2]> {
+fn parse_hexshort(input: &mut &str) -> PResult<(u8, u8)> {
     let high = parse_hexbyte.parse_next(input)?;
     let low = parse_hexbyte.parse_next(input)?;
-    Ok([high, low])
+    Ok((high, low))
 }
 
 #[cfg(test)]
@@ -155,7 +191,7 @@ mod test {
         let output = parse_hexshort.parse_next(&mut input).unwrap();
 
         assert_eq!(input, " .System/r");
-        assert_eq!(output, [0x4c, 0xfd]);
+        assert_eq!(output, (0x4c, 0xfd));
     }
 
     #[test]
@@ -258,5 +294,19 @@ mod test {
         let input = "a0 BRKff80 LIT";
         let output = parse_tal.parse(input);
         assert!(output.is_err());
+    }
+
+    #[test]
+    fn lit_rune() {
+        let input = "#10";
+        let output = parse_tal.parse(input).unwrap();
+        assert_eq!(output, vec!(0x80, 0x10));
+    }
+
+    #[test]
+    fn lit_rune_short() {
+        let output_rune = parse_tal.parse("#dcf2").unwrap();
+        let output_opcode = parse_tal.parse("LIT2 dcf2").unwrap();
+        assert_eq!(output_rune, output_opcode);
     }
 }
