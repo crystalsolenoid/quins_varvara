@@ -3,11 +3,17 @@ use winnow::error::{ContextError, ErrMode, ErrorKind, ParserError};
 use winnow::stream::{Stream, AsChar};
 use winnow::token::{any, one_of, take_until, take_while};
 use winnow::{PResult, Parser};
-use winnow::combinator::{repeat, alt, separated};
+use winnow::combinator::{eof, repeat, alt, separated, preceded};
 
 use crate::opcode::{BASE_OPCODES, encode_base_code};
 
 pub fn parse_tal(input: &mut &str) -> PResult<Vec<u8>> {
+    let bytes: Vec<Option<u8>> = separated(0.., next_token, take_whitespace1)
+        .parse_next(input)?;
+    Ok(bytes.into_iter().flatten().collect())
+}
+
+pub fn parse_tal_old(input: &mut &str) -> PResult<Vec<u8>> {
     repeat(0.., next_token)
         .fold(Vec::new, |mut acc: Vec<u8>, item| {
             if let Some(byte) = item {
@@ -19,12 +25,22 @@ pub fn parse_tal(input: &mut &str) -> PResult<Vec<u8>> {
 }
 
 fn next_token(input: &mut &str) -> PResult<Option<u8>> {
-    alt((take_whitespace, parse_hexbyte)).parse_next(input)
+    let out = alt((parse_opcode, parse_hexbyte)).parse_next(input);
+    out
 }
 
-fn take_whitespace<'s>(input: &mut &'s str) -> PResult<Option<u8>> {
-    take_while(1..,(AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)?;
-    Ok(None)
+fn next_tokens(input: &mut &str) -> PResult<Vec<Option<u8>>> {
+    let out = alt((parse_opcode, parse_hexbyte)).parse_next(input);
+    todo!();
+//    out
+}
+
+fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
+    take_while(1..,(AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
+}
+
+fn take_whitespace0<'s>(input: &mut &'s str) -> PResult<&'s str> {
+    take_while(0..,(AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
 fn parse_comment(input: &mut &str) -> PResult<Option<u8>> {
@@ -77,13 +93,13 @@ fn parse_keep_flag<'s>(input: &mut &'s str) -> PResult<bool>{
     Ok(flag.len() == 1)
 }
 
-fn parse_opcode(input: &mut &str) -> PResult<u8> {
+fn parse_opcode(input: &mut &str) -> PResult<Option<u8>> {
     let (base, flags) = (calculate_base_opcode, calculate_flags).parse_next(input)?;
     // TODO edge case error:
     // if base & flags != 0, that's when we return an error
     // because it means an invalid flag has been used
     // ie LITk
-    Ok(base | flags)
+    Ok(Some(base | flags))
 }
 
 fn hex_digit_to_u8(input: char) -> u8 {
@@ -170,7 +186,7 @@ mod test {
         let mut input = "SUB2 ;on-frame";
         let output = parse_opcode.parse_next(&mut input).unwrap();
         assert_eq!(input, " ;on-frame");
-        assert_eq!(output, 0x39);
+        assert_eq!(output, Some(0x39));
     }
 
     #[test]
@@ -237,5 +253,26 @@ mod test {
         let input = "a0 ff80";
         let output = parse_tal.parse(input).unwrap();
         assert_eq!(output, vec!(0xa0, 0xff, 0x80));
+    }
+
+    #[test]
+    fn parses_bytes_and_opcodes() {
+        let input = "a0 BRK ff80 LIT";
+        let output = parse_tal.parse(input).unwrap();
+        assert_eq!(output, vec!(0xa0, 0x00, 0xff, 0x80, 0x80));
+    }
+
+    #[test]
+    fn errs_when_opcode_has_no_whitespace_before() {
+        let input = "a0BRK ff80 LIT";
+        let output = parse_tal.parse(input);
+        assert!(output.is_err());
+    }
+
+    #[test]
+    fn errs_when_opcode_has_no_whitespace_after() {
+        let input = "a0 BRKff80 LIT";
+        let output = parse_tal.parse(input);
+        assert!(output.is_err());
     }
 }
