@@ -1,15 +1,14 @@
 use winnow::ascii::{hex_digit1, multispace1};
+use winnow::combinator::{alt, dispatch, eof, fail, preceded, repeat, separated};
 use winnow::error::{ContextError, ErrMode, ErrorKind, ParserError};
-use winnow::stream::{Stream, AsChar};
+use winnow::stream::{AsChar, Stream};
 use winnow::token::{any, one_of, take_until, take_while};
 use winnow::{PResult, Parser};
-use winnow::combinator::{eof, repeat, alt, separated, preceded, fail, dispatch};
 
-use crate::opcode::{BASE_OPCODES, encode_base_code};
+use crate::opcode::{encode_base_code, BASE_OPCODES};
 
 pub fn parse_tal(input: &mut &str) -> PResult<Vec<u8>> {
-    let bytes: Vec<Vec<u8>> = separated(0.., next_tokens, take_whitespace1)
-        .parse_next(input)?;
+    let bytes: Vec<Vec<u8>> = separated(0.., next_tokens, take_whitespace1).parse_next(input)?;
     Ok(bytes.into_iter().flatten().collect())
 }
 
@@ -37,7 +36,8 @@ fn parse_rune(input: &mut &str) -> PResult<Vec<u8>> {
         '\'' => parse_todo,
         '"' => parse_todo,
         _ => fail::<_, Vec<u8>, _>,
-    }.parse_next(input)
+    }
+    .parse_next(input)
 }
 
 fn lit_rune(input: &mut &str) -> PResult<Vec<u8>> {
@@ -46,26 +46,24 @@ fn lit_rune(input: &mut &str) -> PResult<Vec<u8>> {
 
 fn lit_rune_byte(input: &mut &str) -> PResult<Vec<u8>> {
     let byte = parse_hexbyte.parse_next(input)?;
-    Ok(vec!(0x80, byte))
+    Ok(vec![0x80, byte])
 }
 
 fn lit_rune_short(input: &mut &str) -> PResult<Vec<u8>> {
     let short = parse_hexshort.parse_next(input)?;
-    Ok(vec!(0xa0, short.0, short.1))
+    Ok(vec![0xa0, short.0, short.1])
 }
 
 fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
-    take_while(1..,(AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
+    take_while(1.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
 fn take_whitespace0<'s>(input: &mut &'s str) -> PResult<&'s str> {
-    take_while(0..,(AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
+    take_while(0.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
 fn parse_comment(input: &mut &str) -> PResult<Option<u8>> {
-    ('(',
-    take_until(0.., ')'),
-    ')').parse_next(input)?;
+    ('(', take_until(0.., ')'), ')').parse_next(input)?;
     Ok(None)
 }
 
@@ -73,8 +71,10 @@ fn parse_base_opcode<'s>(input: &mut &'s str) -> PResult<&'s str> {
     alt(BASE_OPCODES).parse_next(input)
 }
 
-fn calculate_base_opcode(input: &mut & str) -> PResult<u8> {
-    parse_base_opcode.map(|s: &str| encode_base_code(s)).parse_next(input)
+fn calculate_base_opcode(input: &mut &str) -> PResult<u8> {
+    parse_base_opcode
+        .map(|s: &str| encode_base_code(s))
+        .parse_next(input)
 }
 
 fn calculate_flags(input: &mut &str) -> PResult<u8> {
@@ -92,9 +92,8 @@ fn calculate_flags(input: &mut &str) -> PResult<u8> {
     Ok(byte)
 }
 
-fn parse_opcode_flags<'s>(input: &mut &'s str) -> PResult<(bool, bool, bool)>{
+fn parse_opcode_flags<'s>(input: &mut &'s str) -> PResult<(bool, bool, bool)> {
     (parse_short_flag, parse_keep_flag, parse_return_flag).parse_next(input)
-
 }
 
 fn parse_short_flag<'s>(input: &mut &'s str) -> PResult<bool> {
@@ -102,12 +101,12 @@ fn parse_short_flag<'s>(input: &mut &'s str) -> PResult<bool> {
     Ok(flag.len() == 1)
 }
 
-fn parse_return_flag<'s>(input: &mut &'s str) -> PResult<bool>{
+fn parse_return_flag<'s>(input: &mut &'s str) -> PResult<bool> {
     let flag = repeat(0..=1, "r").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
 
-fn parse_keep_flag<'s>(input: &mut &'s str) -> PResult<bool>{
+fn parse_keep_flag<'s>(input: &mut &'s str) -> PResult<bool> {
     let flag = repeat(0..=1, "k").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
@@ -120,7 +119,7 @@ fn parse_opcode(input: &mut &str) -> PResult<Vec<u8>> {
     if base & flags != 0 {
         return fail(input);
     }
-    Ok(vec!(base | flags))
+    Ok(vec![base | flags])
 }
 
 fn hex_digit_to_u8(input: char) -> u8 {
@@ -214,7 +213,7 @@ mod test {
         let mut input = "2k ;on-frame";
         let output = parse_opcode_flags.parse_next(&mut input).unwrap();
         assert_eq!(input, " ;on-frame");
-        assert_eq!(output, (true,true,false));
+        assert_eq!(output, (true, true, false));
     }
 
     #[test]
