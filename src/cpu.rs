@@ -1,5 +1,5 @@
+use super::opcode::{parse_code, Code, CodeFlags, LitFlags};
 use super::varvara::Varvara;
-use super::opcode::{parse_code, CodeFlags, LitFlags, Code};
 
 pub struct Stack {
     bytes: Vec<u8>,
