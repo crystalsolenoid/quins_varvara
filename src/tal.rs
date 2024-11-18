@@ -16,6 +16,7 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
         .into_iter()
         .filter_map(|item| match item {
             ROMItem::Location(_) => None,
+            ROMItem::Addr(_) => todo!(),
             ROMItem::Byte(b) => Some(b),
         })
         .collect();

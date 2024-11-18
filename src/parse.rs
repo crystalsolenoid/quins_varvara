@@ -9,6 +9,7 @@ use crate::opcode::{encode_base_code, BASE_OPCODES};
 pub enum ROMItem<'s> {
     Byte(u8),
     Location(&'s str),
+    Addr(&'s str),
 }
 
 pub fn parse_tal<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
@@ -39,7 +40,7 @@ fn parse_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
         '#' => lit_rune,
         '.' => parse_todo,
         ',' => parse_todo,
-        ';' => parse_todo,
+        ';' => abs_addr_rune,
         ':' => parse_todo,
         '\'' => parse_todo,
         '"' => parse_todo,
@@ -63,8 +64,17 @@ fn lit_rune_short<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
 }
 
 fn label_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
-    let label = take_till(1.., AsChar::is_space).parse_next(input)?;
+    let label = take_label(input)?;
     Ok(vec![ROMItem::Location(label)])
+}
+
+fn abs_addr_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+    let label = take_label(input)?;
+    Ok(vec![ROMItem::Addr(label)])
+}
+
+fn take_label<'s>(input: &mut &'s str) -> PResult<&'s str> {
+    take_till(1.., AsChar::is_space).parse_next(input)
 }
 
 fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
@@ -378,5 +388,11 @@ mod test {
     fn label_rune() {
         let output_rune = parse_tal.parse("@test ").unwrap();
         assert_eq!(output_rune, vec![ROMItem::Location("test")]);
+    }
+
+    #[test]
+    fn absolute_addr_rune() {
+        let output_rune = parse_tal.parse(";test ").unwrap();
+        assert_eq!(output_rune, vec![ROMItem::Addr("test")]);
     }
 }
