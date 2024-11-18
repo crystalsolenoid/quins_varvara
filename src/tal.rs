@@ -30,12 +30,12 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
 fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u8> {
     let byte_enumerate: HashMap<&str, u8> = items
         .into_iter()
-        .scan(0, |state, item| {
+        .scan(0x0100, |state, item| {
             let old_state = *state;
             *state += match item {
                 ROMItem::Byte(_) => 1,
                 ROMItem::Location(_) => 0,
-                ROMItem::Addr(_) => 2,
+                ROMItem::Addr(_) => 3, // ie #0104
             };
             Some((old_state, item))
         })
@@ -55,7 +55,7 @@ mod test {
     fn read_one_location() {
         let items = vec![ROMItem::Byte(0x00), ROMItem::Location("test")];
         let locations = resolve_locations(&items);
-        let desired = HashMap::from([("test", 0x01)]);
+        let desired = HashMap::from([("test", 0x0101)]);
         assert_eq!(locations, desired);
     }
 }
