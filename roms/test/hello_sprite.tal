@@ -1,0 +1,13 @@
+#2ce9 #08 DEO2
+#01c0 #0a DEO2
+#2ce5 #0c DEO2
+
+#0008 #28 DEO2
+#0008 #2a DEO2
+
+;arrow #2c DEO2
+
+#01 #2f DEO
+BRK
+
+@arrow [ 0102 0488 d0e0 f0f8 ]
