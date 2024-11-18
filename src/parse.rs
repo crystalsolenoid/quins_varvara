@@ -5,6 +5,7 @@ use winnow::{PResult, Parser};
 
 use crate::opcode::{encode_base_code, BASE_OPCODES};
 
+#[derive(Debug, PartialEq)]
 pub enum ROMItem<'s> {
     Byte(u8),
     Location(&'s str),
@@ -185,7 +186,7 @@ mod test {
         let output = parse_hexbyte.parse_next(&mut input).unwrap();
 
         assert_eq!(input, " .System/r");
-        assert_eq!(output, 0xfd);
+        assert_eq!(output, ROMItem::Byte(0xfd));
 
         assert!(parse_hexbyte.parse_next(&mut input).is_err());
     }
@@ -197,7 +198,7 @@ mod test {
         let output = parse_hexshort.parse_next(&mut input).unwrap();
 
         assert_eq!(input, " .System/r");
-        assert_eq!(output, (0x4c, 0xfd));
+        assert_eq!(output, (ROMItem::Byte(0x4c), ROMItem::Byte(0xfd)));
     }
 
     #[test]
@@ -212,7 +213,7 @@ mod test {
         let mut input = "SUB2 ;on-frame";
         let output = parse_opcode.parse_next(&mut input).unwrap();
         assert_eq!(input, " ;on-frame");
-        assert_eq!(output, vec!(0x39));
+        assert_eq!(output, vec!(ROMItem::Byte(0x39)));
     }
 
     #[test]
@@ -264,35 +265,74 @@ mod test {
     fn parses_bytes_only_space_delimited() {
         let input = "a0 ff 80";
         let output = parse_tal.parse(input).unwrap();
-        assert_eq!(output, vec!(0xa0, 0xff, 0x80));
+        assert_eq!(
+            output,
+            vec!(
+                ROMItem::Byte(0xa0),
+                ROMItem::Byte(0xff),
+                ROMItem::Byte(0x80)
+            )
+        );
     }
 
     #[test]
     fn parse_unseparated_bytes() {
         let input = "a0ff80";
         let output = parse_many_hexbytes.parse(input).unwrap();
-        assert_eq!(output, vec!(0xa0, 0xff, 0x80));
+        assert_eq!(
+            output,
+            vec!(
+                ROMItem::Byte(0xa0),
+                ROMItem::Byte(0xff),
+                ROMItem::Byte(0x80)
+            )
+        );
     }
 
     #[test]
     fn parses_bytes() {
         let input = "a0 ff80";
         let output = parse_tal.parse(input).unwrap();
-        assert_eq!(output, vec!(0xa0, 0xff, 0x80));
+        assert_eq!(
+            output,
+            vec!(
+                ROMItem::Byte(0xa0),
+                ROMItem::Byte(0xff),
+                ROMItem::Byte(0x80)
+            )
+        );
     }
 
     #[test]
     fn parses_bytes_and_opcodes() {
         let input = "a0 BRK ff80 LIT";
         let output = parse_tal.parse(input).unwrap();
-        assert_eq!(output, vec!(0xa0, 0x00, 0xff, 0x80, 0x80));
+        assert_eq!(
+            output,
+            vec!(
+                ROMItem::Byte(0xa0),
+                ROMItem::Byte(0x00),
+                ROMItem::Byte(0xff),
+                ROMItem::Byte(0x80),
+                ROMItem::Byte(0x80)
+            )
+        );
     }
 
     #[test]
     fn ignores_comment() {
         let input = "a0 BRK (test comment!) ff80 LIT";
         let output = parse_tal.parse(input).unwrap();
-        assert_eq!(output, vec!(0xa0, 0x00, 0xff, 0x80, 0x80));
+        assert_eq!(
+            output,
+            vec!(
+                ROMItem::Byte(0xa0),
+                ROMItem::Byte(0x00),
+                ROMItem::Byte(0xff),
+                ROMItem::Byte(0x80),
+                ROMItem::Byte(0x80)
+            )
+        );
     }
 
     #[test]
@@ -313,7 +353,7 @@ mod test {
     fn lit_rune() {
         let input = "#10";
         let output = parse_tal.parse(input).unwrap();
-        assert_eq!(output, vec!(0x80, 0x10));
+        assert_eq!(output, vec!(ROMItem::Byte(0x80), ROMItem::Byte(0x10)));
     }
 
     #[test]
