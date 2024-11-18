@@ -74,7 +74,7 @@ fn abs_addr_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
 }
 
 fn take_label<'s>(input: &mut &'s str) -> PResult<&'s str> {
-    take_till(1.., AsChar::is_space).parse_next(input)
+    take_till(1.., (AsChar::is_space, AsChar::is_newline)).parse_next(input)
 }
 
 fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
