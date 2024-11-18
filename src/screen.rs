@@ -35,7 +35,11 @@ impl Screen {
         let fg_color = byte & 0b0000_0011;
         let bg_color = (byte & 0b0000_1100) >> 2;
         let index = self.x as usize + WIDTH * self.y as usize;
-        self.buffer[index] = dbg!(fg_color);
+        (0..8).for_each(|y| {
+            self.buffer[y * WIDTH + index..y * WIDTH + index + 8]
+                .iter_mut()
+                .for_each(|p| *p = fg_color);
+        });
     }
 }
 
