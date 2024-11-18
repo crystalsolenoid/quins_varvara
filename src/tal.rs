@@ -27,8 +27,8 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u8> {
-    let byte_enumerate: HashMap<&str, u8> = items
+fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
+    items
         .into_iter()
         .scan(0x0100, |state, item| {
             let old_state = *state;
@@ -43,8 +43,7 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u8> {
             ROMItem::Location(name) => Some((*name, loc)),
             _ => None,
         })
-        .collect();
-    byte_enumerate
+        .collect()
 }
 
 #[cfg(test)]
