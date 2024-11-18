@@ -1,6 +1,6 @@
 use winnow::combinator::{alt, dispatch, fail, repeat, separated};
 use winnow::stream::AsChar;
-use winnow::token::{any, one_of, take_until, take_while};
+use winnow::token::{any, one_of, take_till, take_until, take_while};
 use winnow::{PResult, Parser};
 
 use crate::opcode::{encode_base_code, BASE_OPCODES};
@@ -34,7 +34,7 @@ fn parse_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
         '%' => parse_todo,
         '|' => parse_todo,
         '$' => parse_todo,
-        '@' => parse_todo,
+        '@' => label_rune,
         '&' => parse_todo,
         '#' => lit_rune,
         '.' => parse_todo,
@@ -60,6 +60,11 @@ fn lit_rune_byte<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
 fn lit_rune_short<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     let short = parse_hexshort.parse_next(input)?;
     Ok(vec![ROMItem::Byte(0xa0), short.0, short.1])
+}
+
+fn label_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+    let label = take_till(1.., AsChar::is_space).parse_next(input)?;
+    Ok(vec![ROMItem::Location(label)])
 }
 
 fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
@@ -367,5 +372,11 @@ mod test {
     fn parses_multiline() {
         let input = "#2ce9 #08 DEO2\n";
         let output = parse_tal.parse(input).unwrap();
+    }
+
+    #[test]
+    fn label_rune() {
+        let output_rune = parse_tal.parse("@test ").unwrap();
+        assert_eq!(output_rune, vec![ROMItem::Location("test")]);
     }
 }
