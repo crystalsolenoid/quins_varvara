@@ -37,19 +37,18 @@ impl Screen {
         let bg_color = (byte & 0b0000_1100) >> 2;
         let index = self.x as usize + WIDTH * self.y as usize;
         (0..8).for_each(|y| {
-            let mut pixel_mask = 1;
+            let mut pixel_mask = 0b10000000;
             self.buffer[y * WIDTH + index..y * WIDTH + index + 8]
                 .iter_mut()
-                .enumerate()
-                .for_each(|(x, p)| {
-                    let pixel = (pixel_mask & sprite_data[y]) >> x;
-                    let color = match pixel {
+                .for_each(|p| {
+                    let pixel = pixel_mask & sprite_data[y];
+                    let color = match pixel.count_ones() {
                         0 => bg_color,
                         1 => fg_color,
                         _ => panic!("binary math failed"),
                     };
                     *p = color;
-                    pixel_mask = pixel_mask << 1;
+                    pixel_mask = pixel_mask >> 1;
                 });
         });
     }
