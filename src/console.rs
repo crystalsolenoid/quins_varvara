@@ -27,7 +27,7 @@ impl Default for Console {
 }
 
 impl Device for Console {
-    fn notify_deo(&mut self, _io: &[u8], addr: u8, byte: u8) {
+    fn notify_deo(&mut self, _io: &[u8], _main: &[u8], addr: u8, byte: u8) {
         let port = addr & 0x0F;
         let _ = match port {
             0x8 => self.write(byte),
@@ -35,7 +35,7 @@ impl Device for Console {
         };
     }
 
-    fn notify_deo2(&mut self, _io: &[u8], _addr: u8, _short: u16) {
+    fn notify_deo2(&mut self, _io: &[u8], _main: &[u8], _addr: u8, _short: u16) {
         panic!("You can't write a short to the console.");
     }
 }

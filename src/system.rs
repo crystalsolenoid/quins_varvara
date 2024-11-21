@@ -37,7 +37,7 @@ impl Default for System {
 }
 
 impl Device for System {
-    fn notify_deo(&mut self, _io: &[u8], addr: u8, _byte: u8) {
+    fn notify_deo(&mut self, _io: &[u8], _main: &[u8], addr: u8, _byte: u8) {
         let port = addr & 0x0F;
         match port {
             0xe => todo!("debug port"),
@@ -46,7 +46,7 @@ impl Device for System {
         };
     }
 
-    fn notify_deo2(&mut self, io: &[u8], addr: u8, _short: u16) {
+    fn notify_deo2(&mut self, io: &[u8], _main: &[u8], addr: u8, _short: u16) {
         let port = addr & 0x0F;
         match port {
             0x7..0xe => self.update_color(io),

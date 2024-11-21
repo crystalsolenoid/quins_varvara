@@ -5,8 +5,8 @@ use super::screen::Screen;
 use super::system::System;
 
 pub trait Device {
-    fn notify_deo(&mut self, _io: &[u8], _port: u8, _value: u8) {}
-    fn notify_deo2(&mut self, _io: &[u8], _addr: u8, _short: u16) {}
+    fn notify_deo(&mut self, _io: &[u8], _main: &[u8], _port: u8, _value: u8) {}
+    fn notify_deo2(&mut self, _io: &[u8], _main: &[u8], _addr: u8, _short: u16) {}
 }
 
 pub struct Varvara {
@@ -57,9 +57,9 @@ impl Varvara {
     pub fn deo(&mut self, addr: u8, byte: u8) {
         self.io[addr as usize] = byte;
         match addr {
-            0x00..0x10 => self.system.notify_deo(&self.io, addr, byte),
-            0x10..0x20 => self.console.notify_deo(&self.io, addr, byte),
-            0x20..0x30 => self.screen.notify_deo(&self.io, addr, byte),
+            0x00..0x10 => self.system.notify_deo(&self.io, &self.main, addr, byte),
+            0x10..0x20 => self.console.notify_deo(&self.io, &self.main, addr, byte),
+            0x20..0x30 => self.screen.notify_deo(&self.io, &self.main, addr, byte),
             _ => todo!(),
         }
     }
@@ -70,9 +70,9 @@ impl Varvara {
         match addr {
             // panicking if 0x_F because writing a short to that address would
             // mean writing half to one device and half to another
-            0x00..0x0F => self.system.notify_deo2(&self.io, addr, short),
-            0x10..0x1F => self.console.notify_deo2(&self.io, addr, short),
-            0x20..0x2F => self.screen.notify_deo2(&self.io, addr, short),
+            0x00..0x0F => self.system.notify_deo2(&self.io, &self.main, addr, short),
+            0x10..0x1F => self.console.notify_deo2(&self.io, &self.main, addr, short),
+            0x20..0x2F => self.screen.notify_deo2(&self.io, &self.main, addr, short),
             _ => todo!(),
         }
     }
@@ -118,4 +118,10 @@ pub fn read_short(mem: &[u8], addr: u8) -> u16 {
     let high = mem[addr_high as usize];
     let low = mem[addr_low as usize];
     u16::from_be_bytes([high, low])
+}
+
+pub fn read_bytes<'a>(mem: &'a [u8], addr: u16, num_bytes: u8) -> &'a [u8] {
+    let addr = addr as usize;
+    let num_bytes = num_bytes as usize;
+    &mem[addr..addr + num_bytes]
 }
