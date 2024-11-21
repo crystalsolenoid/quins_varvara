@@ -5,9 +5,15 @@
 #0008 #28 DEO2
 #0008 #2a DEO2
 
-;arrow #2c DEO2
-
+;rock #2c DEO2
 #01 #2f DEO
+
+#0010 #28 DEO2
+
+;smile #2c DEO2
+#01 #2f DEO
+
 BRK
 
-@arrow [ 0102 0488 d0e0 f0f8 ]
+@rock [ 3c4e 9ffd f962 3c00 ]
+@smile [ 0024 2400 0042 3c00 ]
