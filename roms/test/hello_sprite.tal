@@ -13,7 +13,14 @@
 ;smile #2c DEO2
 #01 #2f DEO
 
+#0019 #28 DEO2
+
+;square #2c DEO2
+#81 #2f DEO
+
 BRK
 
 @rock [ 3c4e 9ffd f962 3c00 ]
 @smile [ 0024 2400 0042 3c00 ]
+@square  017f 7b73 6343 7fff
+		 007c 7c7c 7c7c 0000
