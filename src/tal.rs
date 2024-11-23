@@ -29,6 +29,8 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
                 ROMItem::Byte(_) => 1,
                 ROMItem::Location(_) => 0,
                 ROMItem::Addr(_) => 3, // ie #0104
+                ROMItem::MacroDef(_, _) => todo!("No macros should exist at this point."),
+                ROMItem::Macro(_) => todo!("No macros should exist at this point."),
             };
             Some((old_state, item))
         })
@@ -51,6 +53,27 @@ fn replace_locations<'s>(items: &'s [ROMItem]) -> Vec<u8> {
                 bytes.extend(locations[name].to_be_bytes());
                 Some(bytes)
             }
+            ROMItem::MacroDef(_, _) => todo!("No macros should exist at this point."),
+            ROMItem::Macro(_) => todo!("No macros should exist at this point."),
+        })
+        .flatten()
+        .collect()
+}
+
+fn apply_macros<'s>(items: &'s [ROMItem]) -> Vec<ROMItem<'s>> {
+    let mut defined_macros: HashMap<&str, &Vec<ROMItem>> = HashMap::new();
+    items
+        .into_iter()
+        .filter_map(|item| {
+            let answer: Option<Vec<ROMItem<'_>>> = match item {
+                ROMItem::MacroDef(name, contents) => {
+                    defined_macros.insert(name, *contents);
+                    None
+                }
+                ROMItem::Macro(name) => Some(defined_macros.get(name).unwrap().to_vec()), // TODO fix clones?
+                other => Some(vec![other.clone()]), // TODO clone
+            };
+            answer
         })
         .flatten()
         .collect()
@@ -59,6 +82,27 @@ fn replace_locations<'s>(items: &'s [ROMItem]) -> Vec<u8> {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn macros() {
+        let in_macro = " #0008 ";
+        let out_macro: Vec<ROMItem> = parse_tal.parse(&in_macro).unwrap();
+        let parsed: Vec<ROMItem> = vec![
+            ROMItem::MacroDef("INIT-X", &out_macro),
+            ROMItem::Macro("INIT-X"),
+        ];
+
+        let macros_applied = apply_macros(&parsed);
+
+        assert_eq!(
+            macros_applied,
+            vec![
+                ROMItem::Byte(0xa0),
+                ROMItem::Byte(0x00),
+                ROMItem::Byte(0x08)
+            ]
+        );
+    }
 
     #[test]
     fn read_one_location() {

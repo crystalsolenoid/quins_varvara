@@ -5,11 +5,13 @@ use winnow::{PResult, Parser};
 
 use crate::opcode::{encode_base_code, BASE_OPCODES};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ROMItem<'s> {
     Byte(u8),
     Location(&'s str),
     Addr(&'s str),
+    MacroDef(&'s str, &'s Vec<ROMItem<'s>>),
+    Macro(&'s str),
 }
 
 pub fn parse_tal<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
