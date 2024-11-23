@@ -120,7 +120,7 @@ pub fn read_short(mem: &[u8], addr: u8) -> u16 {
     u16::from_be_bytes([high, low])
 }
 
-pub fn read_bytes<'a>(mem: &'a [u8], addr: u16, num_bytes: u8) -> &'a [u8] {
+pub fn read_bytes(mem: &[u8], addr: u16, num_bytes: u8) -> &[u8] {
     let addr = addr as usize;
     let num_bytes = num_bytes as usize;
     &mem[addr..addr + num_bytes]

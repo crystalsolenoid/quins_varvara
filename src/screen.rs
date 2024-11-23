@@ -76,7 +76,7 @@ impl Screen {
                         _ => panic!("binary math failed"),
                     };
                     *p = color;
-                    pixel_mask = pixel_mask >> 1;
+                    pixel_mask >>= 1;
                 });
         });
     }
@@ -101,7 +101,7 @@ impl Screen {
                         _ => panic!("binary math failed"),
                     };
                     *p = color;
-                    pixel_mask = pixel_mask >> 1;
+                    pixel_mask >>= 1;
                 });
         });
     }

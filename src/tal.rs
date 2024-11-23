@@ -22,7 +22,7 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
 
 fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
     items
-        .into_iter()
+        .iter()
         .scan(0x0100, |state, item| {
             let old_state = *state;
             *state += match item {
@@ -41,10 +41,10 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
         .collect()
 }
 
-fn replace_locations<'s>(items: &'s [ROMItem]) -> Vec<u8> {
-    let locations = resolve_locations(&items);
+fn replace_locations(items: &[ROMItem]) -> Vec<u8> {
+    let locations = resolve_locations(items);
     items
-        .into_iter()
+        .iter()
         .filter_map(|item| match item {
             ROMItem::Byte(b) => Some(vec![*b]),
             ROMItem::Location(_) => None,
@@ -63,7 +63,7 @@ fn replace_locations<'s>(items: &'s [ROMItem]) -> Vec<u8> {
 fn apply_macros<'s>(items: &'s [ROMItem]) -> Vec<ROMItem<'s>> {
     let mut defined_macros: HashMap<&str, &Vec<ROMItem>> = HashMap::new();
     items
-        .into_iter()
+        .iter()
         .filter_map(|item| {
             let answer: Option<Vec<ROMItem<'_>>> = match item {
                 ROMItem::MacroDef(name, contents) => {
