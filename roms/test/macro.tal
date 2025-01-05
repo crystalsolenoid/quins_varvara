@@ -1,0 +1,10 @@
+%EMIT { #18 17 }
+
+#68 EMIT
+#65 EMIT
+#6c EMIT
+#6c EMIT
+#6f EMIT
+#0a EMIT
+
+BRK

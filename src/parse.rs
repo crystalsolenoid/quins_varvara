@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use winnow::combinator::{alt, dispatch, fail, repeat, separated};
 use winnow::stream::AsChar;
 use winnow::token::{any, one_of, take_till, take_until, take_while};
-use winnow::{PResult, Parser};
+use winnow::{PResult, Parser, Stateful};
 
 use crate::opcode::{encode_base_code, BASE_OPCODES};
 
@@ -14,27 +15,49 @@ pub enum ROMItem<'s> {
     Macro(&'s str),
 }
 
+#[derive(Debug)]
+struct State<'s>(HashMap<&'s str, Vec<ROMItem<'s>>>);
+
+impl<'s> State<'s> {
+    fn define(&mut self, name: &'s str) {
+        self.0.insert(name, vec![]);
+    }
+}
+
+type Stream<'is> = Stateful<&'is str, State<'is>>;
+
+fn parse_macro_def<'s>(i: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let out = take_till(1.., (AsChar::is_space, AsChar::is_newline)).parse_next(i)?;
+    i.state.define(out);
+    Ok(vec![])
+}
+
 pub fn parse_tal<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
-    take_whitespace0.parse_next(input)?;
+    let state = HashMap::new();
+    let mut input = Stream {
+        input,
+        state: State(state),
+    };
+    take_whitespace0.parse_next(&mut input)?;
     let bytes: Vec<Vec<ROMItem>> =
-        separated(0.., next_tokens, take_whitespace1).parse_next(input)?;
-    take_whitespace0.parse_next(input)?;
+        separated(0.., next_tokens, take_whitespace1).parse_next(&mut input)?;
+    take_whitespace0.parse_next(&mut input)?;
     Ok(bytes.into_iter().flatten().collect())
 }
 
-fn next_tokens<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn next_tokens<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let out =
         alt((parse_comment, parse_rune, parse_opcode, parse_many_hexbytes)).parse_next(input)?;
     Ok(out)
 }
 
-fn parse_todo<'s>(_input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn parse_todo<'s>(_input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     todo!();
 }
 
-fn parse_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn parse_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     dispatch! {any;
-        '%' => parse_todo,
+        '%' => parse_macro_def,
         '|' => parse_todo,
         '$' => parse_todo,
         '@' => label_rune,
@@ -51,58 +74,58 @@ fn parse_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
     .parse_next(input)
 }
 
-fn lit_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn lit_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     alt((lit_rune_short, lit_rune_byte)).parse_next(input)
 }
 
-fn lit_rune_byte<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn lit_rune_byte<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let byte = parse_hexbyte.parse_next(input)?;
     Ok(vec![ROMItem::Byte(0x80), byte])
 }
 
-fn lit_rune_short<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn lit_rune_short<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let short = parse_hexshort.parse_next(input)?;
     Ok(vec![ROMItem::Byte(0xa0), short.0, short.1])
 }
 
-fn label_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn label_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let label = take_label(input)?;
     Ok(vec![ROMItem::Location(label)])
 }
 
-fn abs_addr_rune<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn abs_addr_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let label = take_label(input)?;
     Ok(vec![ROMItem::Addr(label)])
 }
 
-fn take_label<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn take_label<'s>(input: &mut Stream<'s>) -> PResult<&'s str> {
     take_till(1.., (AsChar::is_space, AsChar::is_newline)).parse_next(input)
 }
 
-fn take_whitespace1<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn take_whitespace1<'s>(input: &mut Stream<'s>) -> PResult<&'s str> {
     take_while(1.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
-fn take_whitespace0<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn take_whitespace0<'s>(input: &mut Stream<'s>) -> PResult<&'s str> {
     take_while(0.., (AsChar::is_space, AsChar::is_newline, '[', ']')).parse_next(input)
 }
 
-fn parse_comment<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn parse_comment<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     ('(', take_until(0.., ')'), ')').parse_next(input)?;
     Ok(vec![])
 }
 
-fn parse_base_opcode<'s>(input: &mut &'s str) -> PResult<&'s str> {
+fn parse_base_opcode<'s>(input: &mut Stream<'s>) -> PResult<&'s str> {
     alt(BASE_OPCODES).parse_next(input)
 }
 
-fn calculate_base_opcode(input: &mut &str) -> PResult<u8> {
+fn calculate_base_opcode<'s>(input: &mut Stream<'s>) -> PResult<u8> {
     parse_base_opcode
         .map(|s: &str| encode_base_code(s))
         .parse_next(input)
 }
 
-fn calculate_flags(input: &mut &str) -> PResult<u8> {
+fn calculate_flags<'s>(input: &mut Stream<'s>) -> PResult<u8> {
     let flags = parse_opcode_flags.parse_next(input)?;
     let mut byte = 0;
     if flags.0 {
@@ -117,26 +140,26 @@ fn calculate_flags(input: &mut &str) -> PResult<u8> {
     Ok(byte)
 }
 
-fn parse_opcode_flags(input: &mut &str) -> PResult<(bool, bool, bool)> {
+fn parse_opcode_flags<'s>(input: &mut Stream<'s>) -> PResult<(bool, bool, bool)> {
     (parse_short_flag, parse_keep_flag, parse_return_flag).parse_next(input)
 }
 
-fn parse_short_flag(input: &mut &str) -> PResult<bool> {
+fn parse_short_flag<'s>(input: &mut Stream<'s>) -> PResult<bool> {
     let flag = repeat(0..=1, "2").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
 
-fn parse_return_flag(input: &mut &str) -> PResult<bool> {
+fn parse_return_flag<'s>(input: &mut Stream<'s>) -> PResult<bool> {
     let flag = repeat(0..=1, "r").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
 
-fn parse_keep_flag(input: &mut &str) -> PResult<bool> {
+fn parse_keep_flag<'s>(input: &mut Stream<'s>) -> PResult<bool> {
     let flag = repeat(0..=1, "k").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
 
-fn parse_opcode<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn parse_opcode<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let (base, flags) = (calculate_base_opcode, calculate_flags).parse_next(input)?;
     // if base & flags != 0, that's when we return an error
     // because it means an invalid flag has been used
@@ -174,19 +197,19 @@ const HEX_DIGITS: [char; 16] = [
 ];
 
 // TODO use an "in sequence" combinator?
-fn parse_hexbyte<'s>(input: &mut &'s str) -> PResult<ROMItem<'s>> {
+fn parse_hexbyte<'s>(input: &mut Stream<'s>) -> PResult<ROMItem<'s>> {
     let high = one_of(HEX_DIGITS).parse_next(input)?;
     let low = one_of(HEX_DIGITS).parse_next(input)?;
     let byte = (hex_digit_to_u8(high) << 4) + hex_digit_to_u8(low);
     Ok(ROMItem::Byte(byte))
 }
 
-fn parse_many_hexbytes<'s>(input: &mut &'s str) -> PResult<Vec<ROMItem<'s>>> {
+fn parse_many_hexbytes<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     repeat(1.., parse_hexbyte).parse_next(input)
 }
 
 // TODO use an "in sequence" combinator?
-fn parse_hexshort<'s>(input: &mut &'s str) -> PResult<(ROMItem<'s>, ROMItem<'s>)> {
+fn parse_hexshort<'s>(input: &mut Stream<'s>) -> PResult<(ROMItem<'s>, ROMItem<'s>)> {
     let high = parse_hexbyte.parse_next(input)?;
     let low = parse_hexbyte.parse_next(input)?;
     Ok((high, low))
@@ -198,21 +221,25 @@ mod test {
 
     #[test]
     fn hexbyte() {
-        let mut input = "fd .System/r";
+        let input = "fd .System/r";
+        let state = State(HashMap::new());
+        let mut stream = Stream { input, state };
 
-        let output = parse_hexbyte.parse_next(&mut input).unwrap();
+        let output = parse_hexbyte.parse_next(&mut stream).unwrap();
 
         assert_eq!(input, " .System/r");
         assert_eq!(output, ROMItem::Byte(0xfd));
 
-        assert!(parse_hexbyte.parse_next(&mut input).is_err());
+        assert!(parse_hexbyte.parse_next(&mut stream).is_err());
     }
 
     #[test]
     fn hexshort() {
-        let mut input = "4cfd .System/r";
+        let input = "4cfd .System/r";
+        let state = State(HashMap::new());
+        let mut stream = Stream { input, state };
 
-        let output = parse_hexshort.parse_next(&mut input).unwrap();
+        let output = parse_hexshort.parse_next(&mut stream).unwrap();
 
         assert_eq!(input, " .System/r");
         assert_eq!(output, (ROMItem::Byte(0x4c), ROMItem::Byte(0xfd)));
@@ -220,60 +247,89 @@ mod test {
 
     #[test]
     fn single_digit_isnt_hexbyte() {
-        let mut input = "d .System/r";
-        let output = parse_hexbyte.parse_next(&mut input);
+        let input = "d .System/r";
+        let state = State(HashMap::new());
+        let mut stream = Stream { input, state };
+
+        let output = parse_hexbyte.parse_next(&mut stream);
+
         assert!(output.is_err());
     }
 
     #[test]
     fn parses_opcode() {
-        let mut input = "SUB2 ;on-frame";
-        let output = parse_opcode.parse_next(&mut input).unwrap();
+        let input = "SUB2 ;on-frame";
+        let state = State(HashMap::new());
+        let mut stream = Stream { input, state };
+
+        let output = parse_opcode.parse_next(&mut stream).unwrap();
+
         assert_eq!(input, " ;on-frame");
         assert_eq!(output, vec!(ROMItem::Byte(0x39)));
     }
 
     #[test]
     fn parses_flags() {
-        let mut input = "2k ;on-frame";
-        let output = parse_opcode_flags.parse_next(&mut input).unwrap();
+        let input = "2k ;on-frame";
+        let state = State(HashMap::new());
+        let mut stream = Stream { input, state };
+
+        let output = parse_opcode_flags.parse_next(&mut stream).unwrap();
+
         assert_eq!(input, " ;on-frame");
         assert_eq!(output, (true, true, false));
     }
 
     #[test]
     fn parses_base_opcode_byte() {
-        let mut input = "INC ;on-frame";
-        let output = calculate_base_opcode.parse_next(&mut input).unwrap();
+        let input = "INC ;on-frame";
+        let state = State(HashMap::new());
+        let mut stream = Stream { input, state };
+
+        let output = calculate_base_opcode.parse_next(&mut stream).unwrap();
+
         assert_eq!(output, 0x01);
     }
 
     #[test]
     fn fails_on_opcode_then_nonsense() {
         let input = "SUB2abc ";
+
         let output = parse_tal.parse(input);
+
         assert!(output.is_err());
     }
 
     #[test]
     fn parses_base_opcode() {
-        let mut input = "SUB2 ;on-frame";
-        let output = parse_base_opcode.parse_next(&mut input).unwrap();
+        let input = "SUB2 ;on-frame";
+        let state = State(HashMap::new());
+        let mut stream = Stream { input, state };
+
+        let output = parse_base_opcode.parse_next(&mut stream).unwrap();
+
         assert_eq!(input, "2 ;on-frame");
         assert_eq!(output, "SUB");
     }
 
     #[test]
     fn errs_on_LITk() {
-        let mut input = "LITk 1234";
-        let output = parse_opcode.parse_next(&mut input);
+        let input = "LITk 1234";
+        let state = State(HashMap::new());
+        let mut stream = Stream { input, state };
+
+        let output = parse_opcode.parse_next(&mut stream);
         assert!(output.is_err());
     }
 
     #[test]
     fn comment() {
-        let mut input = "( Comment ) SUB2 INC";
-        let output = parse_comment.parse_next(&mut input).unwrap();
+        let input = "( Comment ) SUB2 INC";
+        let state = State(HashMap::new());
+        let mut stream = Stream { input, state };
+
+        let output = parse_comment.parse_next(&mut stream).unwrap();
+
         assert_eq!(input, " SUB2 INC");
         assert_eq!(output, vec!());
     }
@@ -295,7 +351,11 @@ mod test {
     #[test]
     fn parse_unseparated_bytes() {
         let input = "a0ff80";
-        let output = parse_many_hexbytes.parse(input).unwrap();
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output = parse_many_hexbytes.parse(stream).unwrap();
+
         assert_eq!(
             output,
             vec!(
@@ -383,7 +443,9 @@ mod test {
     #[test]
     fn parses_multiline() {
         let input = "#2ce9 #08 DEO2\n";
-        let output = parse_tal.parse(input).unwrap();
+        let output = parse_tal.parse(input);
+
+        assert!(output.is_ok());
     }
 
     #[test]
