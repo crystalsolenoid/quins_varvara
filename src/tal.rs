@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 
-use crate::parse::{parse_tal, ROMItem};
+use crate::parse::{parse_tal, ROMItem, State, Stream};
 use winnow::Parser;
 
 pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
@@ -11,7 +11,13 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
     let mut contents = String::new();
     input.read_to_string(&mut contents)?;
 
-    let parsed: Vec<ROMItem> = parse_tal.parse(&contents).unwrap();
+    let state = HashMap::new();
+    let stream = Stream {
+        input: &contents,
+        state: State(state),
+    };
+    let parsed: Vec<ROMItem> = parse_tal.parse(stream).unwrap();
+    //    let parsed: Vec<ROMItem> = parse_tal.parse(&contents).unwrap();
 
     let hex = replace_locations(&parsed);
 
@@ -86,7 +92,13 @@ mod test {
     #[test]
     fn macros() {
         let in_macro = " #0008 ";
-        let out_macro: Vec<ROMItem> = parse_tal.parse(&in_macro).unwrap();
+        let state = HashMap::new();
+        let stream = Stream {
+            input: &in_macro,
+            state: State(state),
+        };
+
+        let out_macro: Vec<ROMItem> = parse_tal.parse(stream).unwrap();
         let parsed: Vec<ROMItem> = vec![
             ROMItem::MacroDef("INIT-X", &out_macro),
             ROMItem::Macro("INIT-X"),
