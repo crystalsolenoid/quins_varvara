@@ -73,7 +73,7 @@ fn apply_macros<'s>(items: &'s [ROMItem]) -> Vec<ROMItem<'s>> {
         .filter_map(|item| {
             let answer: Option<Vec<ROMItem<'_>>> = match item {
                 ROMItem::MacroDef(name, contents) => {
-                    defined_macros.insert(name, *contents);
+                    defined_macros.insert(name, contents);
                     None
                 }
                 ROMItem::Macro(name) => Some(defined_macros.get(name).unwrap().to_vec()), // TODO fix clones?
@@ -100,7 +100,7 @@ mod test {
 
         let out_macro: Vec<ROMItem> = parse_tal.parse(stream).unwrap();
         let parsed: Vec<ROMItem> = vec![
-            ROMItem::MacroDef("INIT-X", &out_macro),
+            ROMItem::MacroDef("INIT-X", out_macro),
             ROMItem::Macro("INIT-X"),
         ];
 

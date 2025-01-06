@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use winnow::combinator::{alt, dispatch, fail, repeat, separated};
+use winnow::combinator::{alt, delimited, dispatch, fail, repeat, separated};
 use winnow::stream::AsChar;
 use winnow::token::{any, one_of, take_till, take_until, take_while};
 use winnow::{PResult, Parser, Stateful};
@@ -11,7 +11,7 @@ pub enum ROMItem<'s> {
     Byte(u8),
     Location(&'s str),
     Addr(&'s str),
-    MacroDef(&'s str, &'s Vec<ROMItem<'s>>),
+    MacroDef(&'s str, Vec<ROMItem<'s>>),
     Macro(&'s str),
 }
 
@@ -19,40 +19,76 @@ pub enum ROMItem<'s> {
 pub struct State<'s>(pub HashMap<&'s str, Vec<ROMItem<'s>>>);
 
 impl<'s> State<'s> {
-    fn define(&mut self, name: &'s str) {
-        self.0.insert(name, vec![]);
+    fn define(&mut self, name: &'s str, content: Vec<ROMItem<'s>>) {
+        self.0.insert(name, content);
     }
 }
 
 pub type Stream<'is> = Stateful<&'is str, State<'is>>;
 
 fn parse_macro_def<'s>(i: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
-    let out = take_till(1.., (AsChar::is_space, AsChar::is_newline)).parse_next(i)?;
-    i.state.define(out);
-    Ok(vec![])
+    let name = take_label.parse_next(i)?;
+    take_whitespace0.parse_next(i)?;
+    let cont = delimited('{', parse_tal, '}').parse_next(i)?;
+    let macro_def = vec![ROMItem::MacroDef(name, cont)];
+    match macro_def.clone()[0] {
+        // todo remove clone
+        ROMItem::MacroDef(_, ref c) => i.state.define(name, c.to_vec()),
+        _ => panic!("should always be a MacroDef"),
+    };
+    Ok(macro_def)
+}
+
+// from stash
+/*
+fn macro_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let name = take_label(input)?;
+    let contents = delimited('{', parse_tal, '}').parse_next(input)?;
+
+    Ok(vec![ROMItem::MacroDef(name, contents)])
+}
+*/
+
+// from stash
+fn parse_macro_call<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let name = take_label.parse_next(input)?;
+    if input.state.0.contains_key(name) {
+        Ok(vec![ROMItem::Macro(name)])
+    } else {
+        Err(winnow::error::ErrMode::Backtrack(
+            winnow::error::ContextError::new(),
+        ))
+    }
 }
 
 pub fn parse_tal<'s>(stream: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
-    //    let state = HashMap::new();
-    //    let mut stream = Stream {
-    //        input,
-    //        state: State(state),
-    //    };
-    dbg!(&stream);
     take_whitespace0.parse_next(stream)?;
-    dbg!(&stream);
     let bytes: Vec<Vec<ROMItem>> =
         separated(0.., next_tokens, take_whitespace1).parse_next(stream)?;
-    dbg!(&stream);
     take_whitespace0.parse_next(stream)?;
-    dbg!(&stream);
-    println!("hi");
     Ok(bytes.into_iter().flatten().collect())
 }
 
 fn next_tokens<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
-    let out =
-        alt((parse_comment, parse_rune, parse_opcode, parse_many_hexbytes)).parse_next(input)?;
+    let out = alt((
+        parse_comment,
+        parse_rune,
+        parse_opcode,
+        parse_many_hexbytes,
+        parse_macro_call,
+    ))
+    .parse_next(input)?;
+    Ok(out)
+}
+
+fn next_macro_tokens<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let out = alt((
+        parse_comment,
+        parse_rune_inside_macro,
+        parse_opcode,
+        parse_many_hexbytes,
+    ))
+    .parse_next(input)?;
     Ok(out)
 }
 
@@ -60,23 +96,40 @@ fn parse_todo<'s>(_input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     todo!();
 }
 
+fn parse_rune_inside_macro<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    dispatch! {any;
+        '|' => parse_todo,
+        '$' => parse_todo,
+        '@' => label_rune,
+        '&' => parse_todo,
+        '#' => lit_rune,
+        '.' => parse_todo,
+        ',' => parse_todo,
+        ';' => abs_addr_rune,
+        ':' => parse_todo,
+        '\'' => parse_todo,
+        '"' => parse_todo,
+        _ => fail::<_, Vec<ROMItem>, _>,
+    }
+    .parse_next(input)
+}
+
 fn parse_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     dispatch! {any;
-    //        '%' => parse_macro_def,
-            '%' => parse_todo,
-            '|' => parse_todo,
-            '$' => parse_todo,
-            '@' => label_rune,
-            '&' => parse_todo,
-            '#' => lit_rune,
-            '.' => parse_todo,
-            ',' => parse_todo,
-            ';' => abs_addr_rune,
-            ':' => parse_todo,
-            '\'' => parse_todo,
-            '"' => parse_todo,
-            _ => fail::<_, Vec<ROMItem>, _>,
-        }
+        '%' => parse_macro_def,
+        '|' => parse_todo,
+        '$' => parse_todo,
+        '@' => label_rune,
+        '&' => parse_todo,
+        '#' => lit_rune,
+        '.' => parse_todo,
+        ',' => parse_todo,
+        ';' => abs_addr_rune,
+        ':' => parse_todo,
+        '\'' => parse_todo,
+        '"' => parse_todo,
+        _ => fail::<_, Vec<ROMItem>, _>,
+    }
     .parse_next(input)
 }
 
@@ -495,5 +548,38 @@ mod test {
         let output_rune = parse_tal.parse(stream).unwrap();
 
         assert_eq!(output_rune, vec![ROMItem::Addr("test")]);
+    }
+
+    #[test]
+    fn basic_macro() {
+        let input = "%EMIT { #00 }";
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output_rune = parse_tal.parse(stream).unwrap();
+        assert_eq!(
+            output_rune,
+            vec![ROMItem::MacroDef(
+                "EMIT",
+                vec![ROMItem::Byte(0x80), ROMItem::Byte(0x00)]
+            )]
+        );
+    }
+
+    #[test]
+    fn call_macro() {
+        let input = "%TEST { #00 } TEST";
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output = parse_tal.parse(stream).unwrap();
+
+        assert_eq!(
+            output,
+            vec![
+                ROMItem::MacroDef("TEST", vec![ROMItem::Byte(0x80), ROMItem::Byte(0x00)]),
+                ROMItem::Macro("TEST")
+            ]
+        );
     }
 }
