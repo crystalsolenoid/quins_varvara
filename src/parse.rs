@@ -72,6 +72,8 @@ pub fn parse_tal<'s>(stream: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 fn next_tokens<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let out = alt((
         parse_comment,
+        // todo should I allow macro definitions within macros? maybe implies
+        // lies about the presence scope (there is none)
         parse_rune,
         parse_opcode,
         parse_many_hexbytes,
@@ -81,37 +83,8 @@ fn next_tokens<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     Ok(out)
 }
 
-fn next_macro_tokens<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
-    let out = alt((
-        parse_comment,
-        parse_rune_inside_macro,
-        parse_opcode,
-        parse_many_hexbytes,
-    ))
-    .parse_next(input)?;
-    Ok(out)
-}
-
 fn parse_todo<'s>(_input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     todo!();
-}
-
-fn parse_rune_inside_macro<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
-    dispatch! {any;
-        '|' => parse_todo,
-        '$' => parse_todo,
-        '@' => label_rune,
-        '&' => parse_todo,
-        '#' => lit_rune,
-        '.' => parse_todo,
-        ',' => parse_todo,
-        ';' => abs_addr_rune,
-        ':' => parse_todo,
-        '\'' => parse_todo,
-        '"' => parse_todo,
-        _ => fail::<_, Vec<ROMItem>, _>,
-    }
-    .parse_next(input)
 }
 
 fn parse_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
@@ -178,13 +151,13 @@ fn parse_base_opcode<'s>(input: &mut Stream<'s>) -> PResult<&'s str> {
     alt(BASE_OPCODES).parse_next(input)
 }
 
-fn calculate_base_opcode<'s>(input: &mut Stream<'s>) -> PResult<u8> {
+fn calculate_base_opcode(input: &mut Stream<'_>) -> PResult<u8> {
     parse_base_opcode
         .map(|s: &str| encode_base_code(s))
         .parse_next(input)
 }
 
-fn calculate_flags<'s>(input: &mut Stream<'s>) -> PResult<u8> {
+fn calculate_flags(input: &mut Stream<'_>) -> PResult<u8> {
     let flags = parse_opcode_flags.parse_next(input)?;
     let mut byte = 0;
     if flags.0 {
@@ -199,21 +172,21 @@ fn calculate_flags<'s>(input: &mut Stream<'s>) -> PResult<u8> {
     Ok(byte)
 }
 
-fn parse_opcode_flags<'s>(input: &mut Stream<'s>) -> PResult<(bool, bool, bool)> {
+fn parse_opcode_flags(input: &mut Stream<'_>) -> PResult<(bool, bool, bool)> {
     (parse_short_flag, parse_keep_flag, parse_return_flag).parse_next(input)
 }
 
-fn parse_short_flag<'s>(input: &mut Stream<'s>) -> PResult<bool> {
+fn parse_short_flag(input: &mut Stream<'_>) -> PResult<bool> {
     let flag = repeat(0..=1, "2").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
 
-fn parse_return_flag<'s>(input: &mut Stream<'s>) -> PResult<bool> {
+fn parse_return_flag(input: &mut Stream<'_>) -> PResult<bool> {
     let flag = repeat(0..=1, "r").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
 
-fn parse_keep_flag<'s>(input: &mut Stream<'s>) -> PResult<bool> {
+fn parse_keep_flag(input: &mut Stream<'_>) -> PResult<bool> {
     let flag = repeat(0..=1, "k").map(|()| ()).take().parse_next(input)?;
     Ok(flag.len() == 1)
 }
@@ -369,7 +342,7 @@ mod test {
     }
 
     #[test]
-    fn errs_on_LITk() {
+    fn errs_on_litk() {
         let input = "LITk 1234";
         let state = State(HashMap::new());
         let mut stream = Stream { input, state };
