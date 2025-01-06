@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
@@ -20,9 +21,10 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
 
     let macros_applied = apply_macros(&parsed);
 
-    let hex = replace_locations(&macros_applied);
+    let mut mem: [u8; 0xffff] = [0; 0xffff];
+    let trimmed_mem = write(&macros_applied, &mut mem);
 
-    std::fs::write(output, &hex)?;
+    std::fs::write(output, trimmed_mem)?;
 
     Ok(())
 }
@@ -49,24 +51,37 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
         .collect()
 }
 
-fn replace_locations(items: &[ROMItem]) -> Vec<u8> {
+fn write<'a>(items: &[ROMItem], mem: &'a mut [u8; 0xffff]) -> &'a [u8] {
+    // TODO refactor out the writing procedure. Handle wrapping address math in a
+    // way that protects from zero page writes.
     let locations = resolve_locations(items);
-    items
-        .iter()
-        .filter_map(|item| match item {
-            ROMItem::Byte(b) => Some(vec![*b]),
-            ROMItem::Location(_) => None,
-            ROMItem::Addr(name) => {
-                let mut bytes = vec![0xa0];
-                bytes.extend(locations[name].to_be_bytes());
-                Some(bytes)
-            }
-            ROMItem::AbsPad(_, _) => None,
-            ROMItem::MacroDef(_, _) => todo!("No macros should exist at this point."),
-            ROMItem::Macro(_) => todo!("No macros should exist at this point."),
-        })
-        .flatten()
-        .collect()
+    let mut max_written = 0x0100;
+    items.iter().fold(0x0100, |i, item| match item {
+        ROMItem::Byte(b) => {
+            if i < 0x0100 {
+                panic!("Can't write to zero page.")
+            };
+            mem[i as usize] = *b;
+            max_written = max(max_written, i);
+            i + 1
+        }
+        ROMItem::Location(_) => i,
+        ROMItem::Addr(name) => {
+            if i < 0x0100 {
+                panic!("Can't write to zero page.")
+            };
+            mem[i as usize] = 0xa0;
+            let [a, b] = locations[name].to_be_bytes();
+            mem[i as usize + 1] = a;
+            mem[i as usize + 2] = b;
+            max_written = max(max_written, i + 2);
+            i + 3
+        }
+        ROMItem::AbsPad(a, b) => u16::from_be_bytes([*a, *b]),
+        ROMItem::MacroDef(_, _) => panic!("No macros should exist at this point."),
+        ROMItem::Macro(_) => panic!("No macros should exist at this point."),
+    });
+    &mem[0x0100..=max_written as usize]
 }
 
 fn apply_macros<'s>(items: &'s [ROMItem]) -> Vec<ROMItem<'s>> {
@@ -135,9 +150,12 @@ mod test {
             ROMItem::Location("arrow"),
             ROMItem::Byte(0xff),
         ];
+
+        let mut mem: [u8; 0xffff] = [0; 0xffff];
+        let trimmed_mem = write(&items, &mut mem);
+
         let desired = vec![0xa0, 0x01, 0x04, 0x00, 0xff];
-        let replaced_items = replace_locations(&items);
-        assert_eq!(replaced_items, desired);
+        assert_eq!(trimmed_mem, desired);
     }
 
     #[test]
@@ -150,10 +168,11 @@ mod test {
             ROMItem::Addr("label"),
         ];
 
-        let replaced_items = replace_locations(&items);
+        let mut mem: [u8; 0xffff] = [0; 0xffff];
+        let trimmed_mem = write(&items, &mut mem);
 
         let desired = vec![0xa0, 0x40, 0x01];
-        assert_eq!(replaced_items, desired);
+        assert_eq!(trimmed_mem, desired);
     }
 
     #[test]
@@ -165,9 +184,20 @@ mod test {
             ROMItem::Addr("label"),
         ];
 
-        let replaced_items = replace_locations(&items);
+        let mut mem: [u8; 0xffff] = [0; 0xffff];
+        let trimmed_mem = write(&items, &mut mem);
 
         let desired = vec![0x00, 0x00, 0xa0, 0x01, 0x02];
-        assert_eq!(replaced_items, desired);
+        assert_eq!(trimmed_mem, desired);
+    }
+
+    #[test]
+    #[should_panic]
+    fn no_zero_page_write() {
+        // |00 10
+        let items = vec![ROMItem::AbsPad(0x00, 0x00), ROMItem::Byte(10)];
+
+        let mut mem: [u8; 0xffff] = [0; 0xffff];
+        let _trimmed_mem = write(&items, &mut mem);
     }
 }
