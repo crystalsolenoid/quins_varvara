@@ -32,10 +32,11 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
         .iter()
         .scan(0x0100, |state, item| {
             let old_state = *state;
-            *state += match item {
-                ROMItem::Byte(_) => 1,
-                ROMItem::Location(_) => 0,
-                ROMItem::Addr(_) => 3, // ie #0104
+            *state = match item {
+                ROMItem::Byte(_) => *state + 1,
+                ROMItem::Location(_) => *state,
+                ROMItem::Addr(_) => *state + 3, // ie #0104
+                ROMItem::AbsPad(a, b) => u16::from_be_bytes([*a, *b]),
                 ROMItem::MacroDef(_, _) => todo!("No macros should exist at this point."),
                 ROMItem::Macro(_) => todo!("No macros should exist at this point."),
             };
@@ -60,6 +61,7 @@ fn replace_locations(items: &[ROMItem]) -> Vec<u8> {
                 bytes.extend(locations[name].to_be_bytes());
                 Some(bytes)
             }
+            ROMItem::AbsPad(_, _) => None,
             ROMItem::MacroDef(_, _) => todo!("No macros should exist at this point."),
             ROMItem::Macro(_) => todo!("No macros should exist at this point."),
         })
@@ -135,6 +137,37 @@ mod test {
         ];
         let desired = vec![0xa0, 0x01, 0x04, 0x00, 0xff];
         let replaced_items = replace_locations(&items);
+        assert_eq!(replaced_items, desired);
+    }
+
+    #[test]
+    fn pad_location_label() {
+        // |4001 @label |0100 ;label
+        let items = vec![
+            ROMItem::AbsPad(0x40, 0x01),
+            ROMItem::Location("label"),
+            ROMItem::AbsPad(0x01, 0x00),
+            ROMItem::Addr("label"),
+        ];
+
+        let replaced_items = replace_locations(&items);
+
+        let desired = vec![0xa0, 0x40, 0x01];
+        assert_eq!(replaced_items, desired);
+    }
+
+    #[test]
+    fn pad_location_write() {
+        // |0102 @label ;label
+        let items = vec![
+            ROMItem::AbsPad(0x01, 0x02),
+            ROMItem::Location("label"),
+            ROMItem::Addr("label"),
+        ];
+
+        let replaced_items = replace_locations(&items);
+
+        let desired = vec![0x00, 0x00, 0xa0, 0x01, 0x02];
         assert_eq!(replaced_items, desired);
     }
 }

@@ -13,6 +13,7 @@ pub enum ROMItem<'s> {
     Addr(&'s str),
     MacroDef(&'s str, Vec<ROMItem<'s>>),
     Macro(&'s str),
+    AbsPad(u8, u8),
 }
 
 #[derive(Debug)]
@@ -90,7 +91,7 @@ fn parse_todo<'s>(_input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 fn parse_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     dispatch! {any;
         '%' => parse_macro_def,
-        '|' => parse_todo,
+        '|' => abs_pad_rune,
         '$' => parse_todo,
         '@' => label_rune,
         '&' => parse_todo,
@@ -128,6 +129,27 @@ fn label_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 fn abs_addr_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let label = take_label(input)?;
     Ok(vec![ROMItem::Addr(label)])
+}
+
+fn abs_pad_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let addr = alt((abs_pad_rune_short, abs_pad_rune_byte)).parse_next(input)?;
+    Ok(addr)
+}
+
+fn abs_pad_rune_byte<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let addr = parse_hexbyte.parse_next(input)?;
+    match addr {
+        ROMItem::Byte(b) => Ok(vec![ROMItem::AbsPad(0, b)]),
+        _ => panic!("parse_hexbyte Should always output Byte"),
+    }
+}
+
+fn abs_pad_rune_short<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let addr = parse_hexshort.parse_next(input)?;
+    match addr {
+        (ROMItem::Byte(b), ROMItem::Byte(c)) => Ok(vec![ROMItem::AbsPad(b, c)]),
+        _ => panic!("parse_hexshort Should always output a tuple of Bytes"),
+    }
 }
 
 fn take_label<'s>(input: &mut Stream<'s>) -> PResult<&'s str> {
@@ -554,5 +576,27 @@ mod test {
                 ROMItem::Macro("TEST")
             ]
         );
+    }
+
+    #[test]
+    fn abs_pad_byte() {
+        let input = "|70";
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output = parse_tal.parse(stream).unwrap();
+
+        assert_eq!(output, vec![ROMItem::AbsPad(00, 0x70)]);
+    }
+
+    #[test]
+    fn abs_pad_short() {
+        let input = "|1970";
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output = parse_tal.parse(stream).unwrap();
+
+        assert_eq!(output, vec![ROMItem::AbsPad(0x19, 0x70)]);
     }
 }
