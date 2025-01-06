@@ -39,6 +39,7 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
                 ROMItem::Location(_) => *state,
                 ROMItem::Addr(_) => *state + 3, // ie #0104
                 ROMItem::AbsPad(a, b) => u16::from_be_bytes([*a, *b]),
+                ROMItem::RelPad(a, b) => *state + u16::from_be_bytes([*a, *b]),
                 ROMItem::MacroDef(_, _) => todo!("No macros should exist at this point."),
                 ROMItem::Macro(_) => todo!("No macros should exist at this point."),
             };
@@ -78,6 +79,7 @@ fn write<'a>(items: &[ROMItem], mem: &'a mut [u8; 0xffff]) -> &'a [u8] {
             i + 3
         }
         ROMItem::AbsPad(a, b) => u16::from_be_bytes([*a, *b]),
+        ROMItem::RelPad(a, b) => i + u16::from_be_bytes([*a, *b]),
         ROMItem::MacroDef(_, _) => panic!("No macros should exist at this point."),
         ROMItem::Macro(_) => panic!("No macros should exist at this point."),
     });
@@ -199,5 +201,22 @@ mod test {
 
         let mut mem: [u8; 0xffff] = [0; 0xffff];
         let _trimmed_mem = write(&items, &mut mem);
+    }
+
+    #[test]
+    fn rel_pad() {
+        // |0102 $02 @label ;label
+        let items = vec![
+            ROMItem::AbsPad(0x01, 0x02),
+            ROMItem::RelPad(0x00, 0x02),
+            ROMItem::Location("label"),
+            ROMItem::Addr("label"),
+        ];
+
+        let mut mem: [u8; 0xffff] = [0; 0xffff];
+        let trimmed_mem = write(&items, &mut mem);
+
+        let desired = vec![0x00, 0x00, 0x00, 0x00, 0xa0, 0x01, 0x04];
+        assert_eq!(trimmed_mem, desired);
     }
 }

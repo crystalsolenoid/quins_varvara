@@ -14,6 +14,7 @@ pub enum ROMItem<'s> {
     MacroDef(&'s str, Vec<ROMItem<'s>>),
     Macro(&'s str),
     AbsPad(u8, u8),
+    RelPad(u8, u8),
 }
 
 #[derive(Debug)]
@@ -92,9 +93,9 @@ fn parse_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     dispatch! {any;
         '%' => parse_macro_def,
         '|' => abs_pad_rune,
-        '$' => parse_todo,
+        '$' => rel_pad_rune,
         '@' => label_rune,
-        '&' => parse_todo,
+        '&' => sublabel_rune,
         '#' => lit_rune,
         '.' => parse_todo,
         ',' => parse_todo,
@@ -105,6 +106,10 @@ fn parse_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
         _ => fail::<_, Vec<ROMItem>, _>,
     }
     .parse_next(input)
+}
+
+fn sublabel_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    todo!()
 }
 
 fn lit_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
@@ -129,6 +134,27 @@ fn label_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 fn abs_addr_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let label = take_label(input)?;
     Ok(vec![ROMItem::Addr(label)])
+}
+
+fn rel_pad_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let addr = alt((rel_pad_rune_short, rel_pad_rune_byte)).parse_next(input)?;
+    Ok(addr)
+}
+
+fn rel_pad_rune_byte<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let addr = parse_hexbyte.parse_next(input)?;
+    match addr {
+        ROMItem::Byte(b) => Ok(vec![ROMItem::RelPad(0, b)]),
+        _ => panic!("parse_hexbyte Should always output Byte"),
+    }
+}
+
+fn rel_pad_rune_short<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let addr = parse_hexshort.parse_next(input)?;
+    match addr {
+        (ROMItem::Byte(b), ROMItem::Byte(c)) => Ok(vec![ROMItem::RelPad(b, c)]),
+        _ => panic!("parse_hexshort Should always output a tuple of Bytes"),
+    }
 }
 
 fn abs_pad_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
@@ -598,5 +624,27 @@ mod test {
         let output = parse_tal.parse(stream).unwrap();
 
         assert_eq!(output, vec![ROMItem::AbsPad(0x19, 0x70)]);
+    }
+
+    #[test]
+    fn rel_pad() {
+        let input = "$19";
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output = parse_tal.parse(stream).unwrap();
+
+        assert_eq!(output, vec![ROMItem::RelPad(0x00, 0x19)]);
+    }
+
+    #[test]
+    fn rel_pad_nibble() {
+        let input = "$2";
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output = parse_tal.parse(stream).unwrap();
+
+        assert_eq!(output, vec![ROMItem::RelPad(0x00, 0x02)]);
     }
 }
