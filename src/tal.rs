@@ -17,9 +17,10 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
         state: State(state),
     };
     let parsed: Vec<ROMItem> = parse_tal.parse(stream).unwrap();
-    //    let parsed: Vec<ROMItem> = parse_tal.parse(&contents).unwrap();
 
-    let hex = replace_locations(&parsed);
+    let macros_applied = apply_macros(&parsed);
+
+    let hex = replace_locations(&macros_applied);
 
     std::fs::write(output, &hex)?;
 
