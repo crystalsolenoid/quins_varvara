@@ -137,8 +137,14 @@ fn abs_addr_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 }
 
 fn rel_pad_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
-    let addr = alt((rel_pad_rune_short, rel_pad_rune_byte)).parse_next(input)?;
+    let addr =
+        alt((rel_pad_rune_short, rel_pad_rune_byte, rel_pad_rune_nibble)).parse_next(input)?;
     Ok(addr)
+}
+
+fn rel_pad_rune_nibble<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let addr = parse_nibble.parse_next(input)?;
+    Ok(vec![ROMItem::RelPad(0, addr)])
 }
 
 fn rel_pad_rune_byte<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
@@ -275,6 +281,13 @@ fn hex_digit_to_u8(input: char) -> u8 {
 const HEX_DIGITS: [char; 16] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
 ];
+
+// TODO use an "in sequence" combinator?
+fn parse_nibble<'s>(input: &mut Stream<'s>) -> PResult<u8> {
+    let nibble = one_of(HEX_DIGITS).parse_next(input)?;
+    let byte = hex_digit_to_u8(nibble);
+    Ok(byte)
+}
 
 // TODO use an "in sequence" combinator?
 fn parse_hexbyte<'s>(input: &mut Stream<'s>) -> PResult<ROMItem<'s>> {
