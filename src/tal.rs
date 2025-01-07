@@ -37,7 +37,9 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
             *state = match item {
                 ROMItem::Byte(_) => *state + 1,
                 ROMItem::Location(_) => *state,
-                ROMItem::Addr(_) => *state + 3, // ie #0104
+                ROMItem::SubLocation(_) => *state,
+                ROMItem::Addr(_) => *state + 3,       // ie #0104
+                ROMItem::SubAddr(_, _) => *state + 3, // ie #0104
                 ROMItem::AbsPad(a, b) => u16::from_be_bytes([*a, *b]),
                 ROMItem::RelPad(a, b) => *state + u16::from_be_bytes([*a, *b]),
                 ROMItem::MacroDef(_, _) => todo!("No macros should exist at this point."),
@@ -47,6 +49,7 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
         })
         .filter_map(|(loc, item)| match item {
             ROMItem::Location(name) => Some((*name, loc)),
+            ROMItem::SubLocation(name) => todo!(),
             _ => None,
         })
         .collect()
@@ -67,12 +70,26 @@ fn write<'a>(items: &[ROMItem], mem: &'a mut [u8; 0xffff]) -> &'a [u8] {
             i + 1
         }
         ROMItem::Location(_) => i,
+        ROMItem::SubLocation(_) => i,
         ROMItem::Addr(name) => {
             if i < 0x0100 {
                 panic!("Can't write to zero page.")
             };
             mem[i as usize] = 0xa0;
             let [a, b] = locations[name].to_be_bytes();
+            mem[i as usize + 1] = a;
+            mem[i as usize + 2] = b;
+            max_written = max(max_written, i + 2);
+            i + 3
+        }
+        ROMItem::SubAddr(parent, child) => {
+            if i < 0x0100 {
+                panic!("Can't write to zero page.")
+            };
+            mem[i as usize] = 0xa0;
+            let [a, b] = locations[parent].to_be_bytes();
+            todo!();
+            //let [a, b] = locations[parent][child].to_be_bytes();
             mem[i as usize + 1] = a;
             mem[i as usize + 2] = b;
             max_written = max(max_written, i + 2);
@@ -218,5 +235,24 @@ mod test {
 
         let desired = vec![0x00, 0x00, 0x00, 0x00, 0xa0, 0x01, 0x04];
         assert_eq!(trimmed_mem, desired);
+    }
+
+    #[test]
+    fn sub_label() {
+        // |00 @label $2 &a
+        // |0100 ;label/a
+        let items = vec![
+            ROMItem::AbsPad(0x00, 0x00),
+            ROMItem::Location("label"),
+            ROMItem::RelPad(0x00, 0x02),
+            ROMItem::SubLocation("a"),
+            ROMItem::AbsPad(0x01, 0x00),
+            ROMItem::SubAddr("label", "a"),
+        ];
+
+        let mut mem: [u8; 0xffff] = [0; 0xffff];
+        let trimmed_mem = write(&items, &mut mem);
+
+        let desired = vec![0xa0, 0x00, 0x02];
     }
 }

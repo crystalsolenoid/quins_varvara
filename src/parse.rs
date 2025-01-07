@@ -10,7 +10,9 @@ use crate::opcode::{encode_base_code, BASE_OPCODES};
 pub enum ROMItem<'s> {
     Byte(u8),
     Location(&'s str),
+    SubLocation(&'s str),
     Addr(&'s str),
+    SubAddr(&'s str, &'s str),
     MacroDef(&'s str, Vec<ROMItem<'s>>),
     Macro(&'s str),
     AbsPad(u8, u8),
@@ -109,7 +111,8 @@ fn parse_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 }
 
 fn sublabel_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
-    todo!()
+    let label = take_label(input)?;
+    Ok(vec![ROMItem::SubLocation(label)])
 }
 
 fn lit_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
@@ -132,8 +135,19 @@ fn label_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 }
 
 fn abs_addr_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    alt((sub_abs_addr_rune, abs_addr_rune_parent)).parse_next(input)
+}
+
+fn abs_addr_rune_parent<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let label = take_label(input)?;
     Ok(vec![ROMItem::Addr(label)])
+}
+
+fn sub_abs_addr_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let parent = take_label.parse_next(input)?;
+    '/'.parse_next(input)?;
+    let child = take_label.parse_next(input)?;
+    Ok(vec![ROMItem::SubAddr(parent, child)])
 }
 
 fn rel_pad_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
@@ -185,7 +199,7 @@ fn abs_pad_rune_short<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 }
 
 fn take_label<'s>(input: &mut Stream<'s>) -> PResult<&'s str> {
-    take_till(1.., (AsChar::is_space, AsChar::is_newline)).parse_next(input)
+    take_till(1.., (AsChar::is_space, AsChar::is_newline, '/')).parse_next(input)
 }
 
 fn take_whitespace1<'s>(input: &mut Stream<'s>) -> PResult<&'s str> {
@@ -659,5 +673,30 @@ mod test {
         let output = parse_tal.parse(stream).unwrap();
 
         assert_eq!(output, vec![ROMItem::RelPad(0x00, 0x02)]);
+    }
+
+    #[test]
+    fn sub_location() {
+        let input = "@parent &child";
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output = parse_tal.parse(stream).unwrap();
+
+        assert_eq!(
+            output,
+            vec![ROMItem::Location("parent"), ROMItem::SubLocation("child")]
+        );
+    }
+
+    #[test]
+    fn sub_addr() {
+        let input = ";parent/child";
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output = parse_tal.parse(stream).unwrap();
+
+        assert_eq!(output, vec![ROMItem::SubAddr("parent", "child")]);
     }
 }
