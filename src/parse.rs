@@ -10,7 +10,7 @@ use crate::opcode::{encode_base_code, BASE_OPCODES};
 pub enum ROMItem<'s> {
     Byte(u8),
     Location(&'s str),
-    SubLocation(&'s str),
+    SubLocation(Option<&'s str>, &'s str),
     Addr(&'s str),
     SubAddr(&'s str, &'s str),
     MacroDef(&'s str, Vec<ROMItem<'s>>),
@@ -112,7 +112,7 @@ fn parse_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 
 fn sublabel_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let label = take_label(input)?;
-    Ok(vec![ROMItem::SubLocation(label)])
+    Ok(vec![ROMItem::SubLocation(None, label)])
 }
 
 fn lit_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
@@ -685,7 +685,10 @@ mod test {
 
         assert_eq!(
             output,
-            vec![ROMItem::Location("parent"), ROMItem::SubLocation("child")]
+            vec![
+                ROMItem::Location("parent"),
+                ROMItem::SubLocation(None, "child")
+            ]
         );
     }
 

@@ -29,27 +29,42 @@ pub fn assemble(input: &str, output: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<&'s str, u16> {
+fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<(&'s str, Option<&'s str>), u16> {
     items
         .iter()
-        .scan(0x0100, |state, item| {
-            let old_state = *state;
-            *state = match item {
-                ROMItem::Byte(_) => *state + 1,
-                ROMItem::Location(_) => *state,
-                ROMItem::SubLocation(_) => *state,
-                ROMItem::Addr(_) => *state + 3,       // ie #0104
-                ROMItem::SubAddr(_, _) => *state + 3, // ie #0104
+        .scan((None, 0x0100), |(current_parent, loc), item| {
+            let old_loc = *loc;
+            *loc = match item {
+                ROMItem::Byte(_) => *loc + 1,
+                ROMItem::Location(p) => {
+                    *current_parent = Some(p);
+                    *loc
+                }
+                //ROMItem::SubLocation(_, _) => *loc,
+                ROMItem::SubLocation(_, _) => todo!(),
+                ROMItem::Addr(_) => *loc + 3,       // ie #0104
+                ROMItem::SubAddr(_, _) => *loc + 3, // ie #0104
                 ROMItem::AbsPad(a, b) => u16::from_be_bytes([*a, *b]),
-                ROMItem::RelPad(a, b) => *state + u16::from_be_bytes([*a, *b]),
+                ROMItem::RelPad(a, b) => *loc + u16::from_be_bytes([*a, *b]),
                 ROMItem::MacroDef(_, _) => todo!("No macros should exist at this point."),
                 ROMItem::Macro(_) => todo!("No macros should exist at this point."),
             };
-            Some((old_state, item))
+            Some((
+                old_loc,
+                match item {
+                    //                    ROMItem::SubLocation(_, c) => ROMItem::SubLocation(current_parent, c),
+                    ROMItem::SubLocation(_, c) => todo!(),
+                    i => i,
+                },
+            ))
         })
         .filter_map(|(loc, item)| match item {
-            ROMItem::Location(name) => Some((*name, loc)),
-            ROMItem::SubLocation(name) => todo!(),
+            ROMItem::Location(name) => Some(((*name, None), loc)),
+            ROMItem::SubLocation(p, c) => Some((
+                (p.expect("Sub Location found before Location!"), Some(*c)),
+                loc,
+            )),
+            ROMItem::SubLocation(p, c) => todo!(),
             _ => None,
         })
         .collect()
@@ -70,13 +85,13 @@ fn write<'a>(items: &[ROMItem], mem: &'a mut [u8; 0xffff]) -> &'a [u8] {
             i + 1
         }
         ROMItem::Location(_) => i,
-        ROMItem::SubLocation(_) => i,
+        ROMItem::SubLocation(..) => i,
         ROMItem::Addr(name) => {
             if i < 0x0100 {
                 panic!("Can't write to zero page.")
             };
             mem[i as usize] = 0xa0;
-            let [a, b] = locations[name].to_be_bytes();
+            let [a, b] = locations[&(*name, None)].to_be_bytes();
             mem[i as usize + 1] = a;
             mem[i as usize + 2] = b;
             max_written = max(max_written, i + 2);
@@ -87,7 +102,7 @@ fn write<'a>(items: &[ROMItem], mem: &'a mut [u8; 0xffff]) -> &'a [u8] {
                 panic!("Can't write to zero page.")
             };
             mem[i as usize] = 0xa0;
-            let [a, b] = locations[parent].to_be_bytes();
+            let [a, b] = locations[&(*parent, Some(*child))].to_be_bytes();
             todo!();
             //let [a, b] = locations[parent][child].to_be_bytes();
             mem[i as usize + 1] = a;
@@ -157,7 +172,7 @@ mod test {
     fn read_one_location() {
         let items = vec![ROMItem::Byte(0x00), ROMItem::Location("test")];
         let locations = resolve_locations(&items);
-        let desired = HashMap::from([("test", 0x0101)]);
+        let desired = HashMap::from([(("test", None), 0x0101)]);
         assert_eq!(locations, desired);
     }
 
@@ -245,7 +260,7 @@ mod test {
             ROMItem::AbsPad(0x00, 0x00),
             ROMItem::Location("label"),
             ROMItem::RelPad(0x00, 0x02),
-            ROMItem::SubLocation("a"),
+            ROMItem::SubLocation(None, "a"),
             ROMItem::AbsPad(0x01, 0x00),
             ROMItem::SubAddr("label", "a"),
         ];
