@@ -12,6 +12,8 @@ pub enum ROMItem<'s> {
     Location(&'s str),
     SubLocation(Option<&'s str>, &'s str),
     Addr(&'s str),
+    ZeroAddr(&'s str),
+    ZeroSubAddr(&'s str, &'s str),
     SubAddr(&'s str, &'s str),
     MacroDef(&'s str, Vec<ROMItem<'s>>),
     Macro(&'s str),
@@ -99,7 +101,7 @@ fn parse_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
         '@' => label_rune,
         '&' => sublabel_rune,
         '#' => lit_rune,
-        '.' => parse_todo,
+        '.' => zero_addr_rune,
         ',' => parse_todo,
         ';' => abs_addr_rune,
         ':' => parse_todo,
@@ -132,6 +134,16 @@ fn lit_rune_short<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
 fn label_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
     let label = take_label(input)?;
     Ok(vec![ROMItem::Location(label)])
+}
+
+fn zero_addr_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
+    let addr = alt((sub_abs_addr_rune, abs_addr_rune_parent)).parse_next(input)?;
+    let out = match addr[0] {
+        ROMItem::Addr(p) => ROMItem::ZeroAddr(p),
+        ROMItem::SubAddr(p, c) => ROMItem::ZeroSubAddr(p, c),
+        _ => panic!("Should never reach here."),
+    };
+    Ok(vec![out])
 }
 
 fn abs_addr_rune<'s>(input: &mut Stream<'s>) -> PResult<Vec<ROMItem<'s>>> {
@@ -701,5 +713,16 @@ mod test {
         let output = parse_tal.parse(stream).unwrap();
 
         assert_eq!(output, vec![ROMItem::SubAddr("parent", "child")]);
+    }
+
+    #[test]
+    fn zero_addr() {
+        let input = ".parent";
+        let state = State(HashMap::new());
+        let stream = Stream { input, state };
+
+        let output = parse_tal.parse(stream).unwrap();
+
+        assert_eq!(output, vec![ROMItem::ZeroAddr("parent")]);
     }
 }

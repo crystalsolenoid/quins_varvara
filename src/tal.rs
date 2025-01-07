@@ -41,8 +41,10 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<(&'s str, Option<&'s s
                     *loc
                 }
                 ROMItem::SubLocation(_, _) => *loc,
-                ROMItem::Addr(_) => *loc + 3,       // ie #0104
-                ROMItem::SubAddr(_, _) => *loc + 3, // ie #0104
+                ROMItem::ZeroAddr(_) => *loc + 2,       // ie #01
+                ROMItem::ZeroSubAddr(_, _) => *loc + 2, // ie #01
+                ROMItem::Addr(_) => *loc + 3,           // ie #0104
+                ROMItem::SubAddr(_, _) => *loc + 3,     // ie #0104
                 ROMItem::AbsPad(a, b) => u16::from_be_bytes([*a, *b]),
                 ROMItem::RelPad(a, b) => *loc + u16::from_be_bytes([*a, *b]),
                 ROMItem::MacroDef(_, _) => todo!("No macros should exist at this point."),
@@ -83,6 +85,32 @@ fn write<'a>(items: &[ROMItem], mem: &'a mut [u8; 0xffff]) -> &'a [u8] {
         }
         ROMItem::Location(_) => i,
         ROMItem::SubLocation(..) => i,
+        ROMItem::ZeroAddr(name) => {
+            if i < 0x0100 {
+                panic!("Can't write to zero page.")
+            };
+            mem[i as usize] = 0x80;
+            let [a, b] = locations[&(*name, None)].to_be_bytes();
+            if a > 0 {
+                panic!("Attempting to address to zero page with non-zero-page address.")
+            }
+            mem[i as usize + 1] = b;
+            max_written = max(max_written, i + 1);
+            i + 2
+        }
+        ROMItem::ZeroSubAddr(p, c) => {
+            if i < 0x0100 {
+                panic!("Can't write to zero page.")
+            };
+            mem[i as usize] = 0x80;
+            let [a, b] = locations[&(*p, Some(*c))].to_be_bytes();
+            if a > 0 {
+                panic!("Attempting to address to zero page with non-zero-page address.")
+            }
+            mem[i as usize + 1] = b;
+            max_written = max(max_written, i + 1);
+            i + 2
+        }
         ROMItem::Addr(name) => {
             if i < 0x0100 {
                 panic!("Can't write to zero page.")
@@ -264,5 +292,22 @@ mod test {
         let trimmed_mem = write(&items, &mut mem);
 
         let desired = vec![0xa0, 0x00, 0x02];
+    }
+
+    #[test]
+    fn zero_page_addr() {
+        // |10 @label
+        // |0100 .label
+        let items = vec![
+            ROMItem::AbsPad(0x00, 0x10),
+            ROMItem::Location("label"),
+            ROMItem::AbsPad(0x01, 0x00),
+            ROMItem::ZeroAddr("label"),
+        ];
+
+        let mut mem: [u8; 0xffff] = [0; 0xffff];
+        let trimmed_mem = write(&items, &mut mem);
+
+        let desired = vec![0x80, 0x10];
     }
 }
