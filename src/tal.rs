@@ -37,11 +37,10 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<(&'s str, Option<&'s s
             *loc = match item {
                 ROMItem::Byte(_) => *loc + 1,
                 ROMItem::Location(p) => {
-                    *current_parent = Some(p);
+                    *current_parent = Some(*p);
                     *loc
                 }
-                //ROMItem::SubLocation(_, _) => *loc,
-                ROMItem::SubLocation(_, _) => todo!(),
+                ROMItem::SubLocation(_, _) => *loc,
                 ROMItem::Addr(_) => *loc + 3,       // ie #0104
                 ROMItem::SubAddr(_, _) => *loc + 3, // ie #0104
                 ROMItem::AbsPad(a, b) => u16::from_be_bytes([*a, *b]),
@@ -52,19 +51,17 @@ fn resolve_locations<'s>(items: &'s [ROMItem]) -> HashMap<(&'s str, Option<&'s s
             Some((
                 old_loc,
                 match item {
-                    //                    ROMItem::SubLocation(_, c) => ROMItem::SubLocation(current_parent, c),
-                    ROMItem::SubLocation(_, c) => todo!(),
-                    i => i,
+                    ROMItem::SubLocation(_, c) => ROMItem::SubLocation(*current_parent, c),
+                    i => i.clone(),
                 },
             ))
         })
         .filter_map(|(loc, item)| match item {
-            ROMItem::Location(name) => Some(((*name, None), loc)),
+            ROMItem::Location(name) => Some(((name, None), loc)),
             ROMItem::SubLocation(p, c) => Some((
-                (p.expect("Sub Location found before Location!"), Some(*c)),
+                (p.expect("Sub Location found before Location!"), Some(c)),
                 loc,
             )),
-            ROMItem::SubLocation(p, c) => todo!(),
             _ => None,
         })
         .collect()
@@ -103,8 +100,6 @@ fn write<'a>(items: &[ROMItem], mem: &'a mut [u8; 0xffff]) -> &'a [u8] {
             };
             mem[i as usize] = 0xa0;
             let [a, b] = locations[&(*parent, Some(*child))].to_be_bytes();
-            todo!();
-            //let [a, b] = locations[parent][child].to_be_bytes();
             mem[i as usize + 1] = a;
             mem[i as usize + 2] = b;
             max_written = max(max_written, i + 2);
