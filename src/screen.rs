@@ -37,26 +37,26 @@ impl Screen {
     }
 
     fn draw_sprite_2bpp(&mut self, byte: u8, mem: &[u8]) {
-        let high_data = read_bytes(mem, self.addr, 8);
-        let low_data = read_bytes(mem, self.addr + 8, 8);
+        let high_data = read_bytes(mem, self.addr + 8, 8);
+        let low_data = read_bytes(mem, self.addr, 8);
         let color_set = byte & 0b0000_1111;
         let color = match color_set {
-            0x0 => (0, 0, 1, 2),
+            0x0 => (0, 0, 1, 2), // TODO add transparency
             0x1 => (0, 1, 2, 3),
             0x2 => (0, 2, 3, 1),
             0x3 => (0, 3, 1, 2),
             0x4 => (1, 0, 1, 2),
-            0x5 => (0, 1, 2, 3), // TODO add transparency
+            0x5 => (1, 1, 2, 3), // TODO add transparency
             0x6 => (1, 2, 3, 1),
             0x7 => (1, 3, 1, 2),
             0x8 => (2, 0, 1, 2),
             0x9 => (2, 1, 2, 3),
-            0xa => (0, 2, 3, 1), // TODO add transparency
+            0xa => (2, 2, 3, 1), // TODO add transparency
             0xb => (2, 3, 1, 2),
             0xc => (3, 0, 1, 2),
             0xd => (3, 1, 2, 3),
             0xe => (3, 2, 3, 1),
-            0xf => (0, 3, 1, 2), // TODO add transparency
+            0xf => (3, 3, 1, 2), // TODO add transparency
             _ => panic!("violated binary"),
         };
 
@@ -68,14 +68,19 @@ impl Screen {
                 .for_each(|p| {
                     let high = (pixel_mask & high_data[y]).count_ones();
                     let low = (pixel_mask & low_data[y]).count_ones();
-                    let color = match (high, low) {
+                    let quad_color = match (high, low) {
                         (0, 0) => color.0,
                         (0, 1) => color.1,
                         (1, 0) => color.2,
                         (1, 1) => color.3,
                         _ => panic!("binary math failed"),
                     };
-                    *p = color;
+                    if color.0 == color.1 && (high, low) == (0, 0) {
+                        // transparent background
+                        // TODO test this
+                    } else {
+                        *p = quad_color;
+                    }
                     pixel_mask >>= 1;
                 });
         });
@@ -100,7 +105,11 @@ impl Screen {
                         1 => fg_color,
                         _ => panic!("binary math failed"),
                     };
-                    *p = color;
+                    if bg_color == fg_color && pixel.count_ones() == 0 {
+                        // transparent background
+                    } else {
+                        *p = color;
+                    }
                     pixel_mask >>= 1;
                 });
         });

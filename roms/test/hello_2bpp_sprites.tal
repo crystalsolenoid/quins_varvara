@@ -1,0 +1,61 @@
+( hello-2bpp-sprite.tal )
+( source: https://compudanzas.net/uxn_tutorial_day_2.html#drawing%202bpp%20sprites )
+
+( devices )
+|00 @System  [ &vector $2 &pad $6 &r $2 &g $2 &b $2 ]
+|20 @Screen  [ &vector $2 &width $2 &height $2 &pad $2 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1 ]
+
+( macros )
+%INIT-X { #0008 .Screen/x DEO2 } ( -- )
+%INIT-Y { #0008 .Screen/y DEO2 } ( -- )
+%cADD-X { .Screen/x DEI2 #000c ADD2 .Screen/x DEO2 } ( -- )
+%cADD-Y { .Screen/y DEI2 #000c ADD2 .Screen/y DEO2 } ( -- )
+
+( main program )
+|0100
+      ( set system colors )
+      #0f6f .System/r DEO2
+      #0ff4 .System/g DEO2
+      #0fa4 .System/b DEO2
+
+      ( set  initial x,y coordinates )
+      INIT-X INIT-Y
+      ( set sprite address )
+      ;new-square .Screen/addr DEO2
+
+      #80 .Screen/sprite DEO cADD-Y
+      #81 .Screen/sprite DEO cADD-Y
+      #82 .Screen/sprite DEO cADD-Y
+      #83 .Screen/sprite DEO cADD-X
+
+      INIT-Y
+      #84 .Screen/sprite DEO cADD-Y
+      #85 .Screen/sprite DEO cADD-Y
+      #86 .Screen/sprite DEO cADD-Y
+      #87 .Screen/sprite DEO cADD-X
+
+      INIT-Y
+      #88 .Screen/sprite DEO cADD-Y
+      #89 .Screen/sprite DEO cADD-Y
+      #8a .Screen/sprite DEO cADD-Y
+      #8b .Screen/sprite DEO cADD-X
+
+      INIT-Y
+      #8c .Screen/sprite DEO cADD-Y
+      #8d .Screen/sprite DEO cADD-Y
+      #8e .Screen/sprite DEO cADD-Y
+      #8f .Screen/sprite DEO
+
+BRK
+
+@new-square 00 00 18 3c 3c 18 00 00 00 18 24 5a 5a 24 18 00
+(
+........ 00 00
+...**... 18 00
+..*##*.. 24 18
+.*#@@#*. 5a 3c
+.*#@@#*. 5a 3c
+..*##*.. 24 18
+...**... 18 00
+........ 00 00
+)

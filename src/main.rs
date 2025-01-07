@@ -12,10 +12,15 @@ fn main() -> io::Result<()> {
     let mut varvara = Varvara::new();
     let mut uxn = Cpu::new();
 
-    tal::assemble("roms/test/macro.tal", "roms/test/macro.rom").expect("failed to assemble");
+    tal::assemble(
+        "roms/test/hello_2bpp_sprites_sq.tal",
+        "roms/test/hello_2bpp_sprites_sq.rom",
+    )
+    .expect("failed to assemble");
 
     let rom_load_area = &mut varvara.main[0x0100..];
-    let mut file = File::open("roms/test/macro.rom").expect("failed to open rom file");
+    let mut file =
+        File::open("roms/test/hello_2bpp_sprites_sq.rom").expect("failed to open rom file");
     let _n = file.read(rom_load_area).expect("failed to read rom file");
 
     for i in varvara.screen.buffer.iter_mut() {
